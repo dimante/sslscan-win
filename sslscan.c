@@ -37,20 +37,31 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
+#define snprintf(...) _snprintf(__VA_ARGS__)
 DWORD dwError;
 #else
 #include <netdb.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 #endif
 #include <sys/stat.h>
+
+#if defined (WIN32)
+#define CLOSESOCKET(s) closesocket(s)
+#else
+#define CLOSESOCKET(s) close(s)
+#endif
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+
+#if defined(WIN32)
 #include <openssl/applink.c>
+#endif
 
 // Defines...
 #define false 0
@@ -89,8 +100,10 @@ const char *program_banner = "                   _\n"
                              "          |___/___/_|___/\\___\\__,_|_| |_|\n\n"
                              "                  Version 1.8.2\n"
                              "             http://www.titania.co.uk\n"
-                             "        Copyright Ian Ventura-Whiting 2009\n";
-const char *program_version = "sslscan version 1.8.2\nhttp://www.titania.co.uk\nCopyright (C) Ian Ventura-Whiting 2009\n";
+                             "        Copyright Ian Ventura-Whiting 2009\n"
+							 "    Compiled against " OPENSSL_VERSION_TEXT "\n";
+
+const char *program_version = "sslscan version 1.8.2\n" OPENSSL_VERSION_TEXT "\nhttp://www.titania.co.uk\nCopyright (C) Ian Ventura-Whiting 2009\n";
 const char *xml_version = "1.8.2";
 
 
@@ -133,6 +146,52 @@ struct sslCheckOptions
 	char *privateKeyPassword;
 };
 
+int parseDescription( char *description, char *dest )
+{
+	char kx[10], au[10], enc[10], mac[10];
+
+	sscanf(description, "%*s %*s Kx=%s Au=%s Enc=%s Mac=%s", kx, au, enc, mac);
+	snprintf(dest, BUFFERSIZE-1, "kx=\"%s\" au=\"%s\" enc=\"%s\" mac=\"%s\"", kx, au, enc, mac);
+	return true;
+}
+
+void set_blocking(SSL * ssl)
+{
+#if defined (WIN32)
+	int fd, res;
+	u_long iMode = 0;
+	if( (fd = SSL_get_rfd(ssl)) )       
+	{ 
+		res = ioctlsocket(fd, FIONBIO, &iMode);
+		if( res )
+		{
+			// Something went wrong...
+			dwError = WSAGetLastError();
+			if (dwError != 0) {
+					printf("%sERROR in set_blocking(): %ld.%s\n", COL_RED, dwError, RESET);
+			}
+		}
+	}
+#else
+  int fd, flags;      
+
+  /* SSL_get_rfd returns -1 on error */
+  if( (fd = SSL_get_rfd(ssl)) )       
+  { 
+	flags = fcntl(fd, F_GETFL);
+    flags &= ~O_NONBLOCK;
+    fcntl(fd, F_SETFL, flags);
+  } 
+
+  /* SSL_get_wfd returns -1 on error */  
+  if( (fd = SSL_get_wfd(ssl)) )      
+  {
+    flags = fcntl(fd, F_GETFL);
+    flags &= ~O_NONBLOCK;
+    fcntl(fd, F_SETFL, flags);
+  }
+#endif
+}
 
 // Adds Ciphers to the Cipher List structure
 int populateCipherList(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
@@ -286,11 +345,7 @@ int tcpConnect(struct sslCheckOptions *options)
 		recv(socketDescriptor, buffer, BUFFERSIZE - 1, 0);
 		if (strncmp(buffer, "220", 3) != 0)
 		{
-#if defined( WIN32 )
-			closesocket(socketDescriptor);
-#else
-			close(socketDescriptor);
-#endif
+			CLOSESOCKET(socketDescriptor);
 			printf("%s    ERROR: The host %s on port %d did not appear to be an SMTP service.%s\n", COL_RED, options->host, options->port, RESET);
 			return 0;
 		}
@@ -299,11 +354,7 @@ int tcpConnect(struct sslCheckOptions *options)
 		recv(socketDescriptor, buffer, BUFFERSIZE - 1, 0);
 		if (strncmp(buffer, "250", 3) != 0)
 		{
-#if defined( WIN32 )
-			closesocket(socketDescriptor);
-#else
- 			close(socketDescriptor);
-#endif
+			CLOSESOCKET(socketDescriptor);
 			printf("%s    ERROR: The SMTP service on %s port %d did not respond with status 250 to our HELO.%s\n", COL_RED, options->host, options->port, RESET);
 			return 0;
 		}
@@ -312,11 +363,7 @@ int tcpConnect(struct sslCheckOptions *options)
 		recv(socketDescriptor, buffer, BUFFERSIZE - 1, 0);
 		if (strncmp(buffer, "220", 3) != 0)
 		{
-#if defined( WIN32 )
-			closesocket(socketDescriptor);
-#else
- 			close(socketDescriptor);
-#endif
+			CLOSESOCKET(socketDescriptor);
 			printf("%s    ERROR: The SMTP service on %s port %d did not appear to support STARTTLS.%s\n", COL_RED, options->host, options->port, RESET);
 			return 0;
 		}
@@ -459,19 +506,13 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 	SSL *ssl = NULL;
 	BIO *cipherConnectionBio;
 	BIO *stdoutBIO = NULL;
-	int tempInt;
-	char requestBuffer[200];
+	char requestBuffer[BUFFERSIZE];
 	char buffer[50];
 	int resultSize = 0;
 
 	// Create request buffer...
-	memset(requestBuffer, 0, 200);
-#if defined( WIN32 )
-	_snprintf(requestBuffer, 199, "GET / HTTP/1.0\r\nUser-Agent: SSLScan\r\nHost: %s\r\n\r\n", options->host);
-#else
-	snprintf(requestBuffer, 199, "GET / HTTP/1.0\r\nUser-Agent: SSLScan\r\nHost: %s\r\n\r\n", options->host);
-#endif
-
+	memset(requestBuffer, 0, BUFFERSIZE);
+	snprintf(requestBuffer, BUFFERSIZE-1, "GET / HTTP/1.0\r\nUser-Agent: SSLScan\r\nHost: %s\r\n\r\n", options->host);
 	// Connect to host
 	socketDescriptor = tcpConnect(options);
 	if (socketDescriptor != 0)
@@ -616,23 +657,18 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 						else
 							printf("TLSv1  ");
 					}
-					if (sslCipherPointer->bits < 10)
-						tempInt = 2;
-					else if (sslCipherPointer->bits < 100)
-						tempInt = 1;
-					else
-						tempInt = 0;
 					if (options->pout == true)
 						printf("%d || ", sslCipherPointer->bits);
 					else
-						printf("%d bits  ", sslCipherPointer->bits);
-					while (tempInt != 0)
-					{
-						tempInt--;
-						printf(" ");
-					}
+						printf("%3d bits  ", sslCipherPointer->bits);
+
 					if (options->xmlOutput != 0)
-						fprintf(options->xmlOutput, "%d\" cipher=\"%s\" />\n", sslCipherPointer->bits, sslCipherPointer->name);
+					{
+						char dest[BUFFERSIZE];
+						parseDescription(sslCipherPointer->description, dest);
+						fprintf(options->xmlOutput, "%d\" cipher=\"%s\" %s />\n", sslCipherPointer->bits, sslCipherPointer->name, dest);
+					}
+
 					if (options->pout == true)
 						printf("%s ||\n", sslCipherPointer->name);
 					else
@@ -659,11 +695,7 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 		}
 
 		// Disconnect from host
-#if defined( WIN32 )
-			closesocket(socketDescriptor);
-#else
- 			close(socketDescriptor);
-#endif
+		CLOSESOCKET(socketDescriptor);
 	}
 
 	// Could not connect
@@ -671,6 +703,147 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 		status = false;
 
 	return status;
+}
+
+// Check if the server supports renegotiation
+int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
+{
+	// Variables...
+	int cipherStatus;
+	int status = true;
+	int secure = false;
+	int socketDescriptor = 0;
+	int res;
+	SSL *ssl = NULL;
+	BIO *cipherConnectionBio;
+
+	// Connect to host
+	socketDescriptor = tcpConnect(options);
+	if (socketDescriptor != 0)
+	{
+
+		// Setup Context Object...
+		options->ctx = SSL_CTX_new(sslMethod);
+		if (options->ctx != NULL)
+		{
+			if (SSL_CTX_set_cipher_list(options->ctx, "ALL:COMPLEMENTOFALL") != 0)
+			{
+
+				// Load Certs if required...
+				if ((options->clientCertsFile != 0) || (options->privateKeyFile != 0))
+					status = loadCerts(options);
+
+				if (status == true)
+				{
+					// Create SSL object...
+					ssl = SSL_new(options->ctx);
+#if ( OPENSSL_VERSION_NUMBER > 0x009080cfL )
+					// Make sure we can connect to insecure servers
+					// OpenSSL is going to change the default at a later date
+					SSL_set_options(ssl, SSL_OP_LEGACY_SERVER_CONNECT); 
+#endif
+					if (ssl != NULL)
+					{
+						// Connect socket and BIO
+						cipherConnectionBio = BIO_new_socket(socketDescriptor, BIO_NOCLOSE);
+
+						// Connect SSL and BIO
+						SSL_set_bio(ssl, cipherConnectionBio, cipherConnectionBio);
+
+						// Connect SSL over socket
+						cipherStatus = SSL_connect(ssl);
+
+						if (cipherStatus == 1)
+						{
+#if ( OPENSSL_VERSION_NUMBER > 0x009080cfL )
+							// SSL_get_secure_renegotiation_support() appeared first in OpenSSL 0.9.8m
+							secure = SSL_get_secure_renegotiation_support(ssl);
+							if( secure )
+							{
+								// If it supports secure renegotiations,
+								// it should have renegotioation support in general
+								status = true;	
+							}
+							else
+							{
+#endif
+								// We can't assume that just because the secure renegotiation
+								// support failed the server doesn't support insecure renegotiations 
+
+								// assume ssl is connected and error free up to here
+								set_blocking(ssl); // this is unnecessary if it is already blocking 
+								SSL_renegotiate(ssl); // Ask to renegotiate the connection
+								SSL_do_handshake(ssl); // Send renegotiation request to server
+
+								if (ssl->state == SSL_ST_OK)
+								{
+									//ssl->state |= SSL_ST_ACCEPT;
+									//ssl->state = SSL_ST_ACCEPT;
+									res = SSL_do_handshake(ssl); // Send renegotiation request to server
+									if( res != 1 )
+									{
+										printf("\n\nSSL_do_handshake() call failed\n");
+									}
+									if (ssl->state == SSL_ST_OK)
+									{
+										/* our renegotiation is complete */
+										status = true;
+										printf("\n\nRenegotiation request succeeded\n");
+									} else {
+										status = false;
+										printf("\n\nFailed to complete renegotiation\n");
+									}
+								} else {
+									status = false;
+									printf("\n\nFailed to send renegotiation request\n", COL_RED, RESET);
+								}
+#if ( OPENSSL_VERSION_NUMBER > 0x10000006L )
+							}
+#endif
+							// Disconnect SSL over socket
+							SSL_shutdown(ssl);
+						}
+
+						// Free SSL object
+						SSL_free(ssl);
+					}
+					else
+					{
+						status = false;
+						printf("%s    ERROR: Could create SSL object.%s\n", COL_RED, RESET);
+					}
+				}
+			}
+			else
+			{
+				status = false;
+				printf("%s    ERROR: Could set cipher.%s\n", COL_RED, RESET);
+			}
+			
+			// Free CTX Object
+			SSL_CTX_free(options->ctx);
+		}
+	
+		// Error Creating Context Object
+		else
+		{
+			status = false;
+			printf("%sERROR: Could not create CTX object.%s\n", COL_RED, RESET);
+		}
+
+		// Disconnect from host
+		CLOSESOCKET(socketDescriptor);
+	}
+
+	// Could not connect
+	else
+		status = false;
+
+	if (options->xmlOutput != 0)
+		fprintf(options->xmlOutput, " <renegotiation supported=\"%d\" secure=\"%d\"/>\n", status, secure);
+
+	return status;					
+
 }
 
 
@@ -683,7 +856,6 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 	int socketDescriptor = 0;
 	SSL *ssl = NULL;
 	BIO *cipherConnectionBio;
-	int tempInt;
 	int tempInt2;
 
 	// Connect to host
@@ -745,23 +917,19 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 								else
 									printf("    TLSv1  ");
 							}
-							if (SSL_get_cipher_bits(ssl, &tempInt2) < 10)
-								tempInt = 2;
-							else if (SSL_get_cipher_bits(ssl, &tempInt2) < 100)
-								tempInt = 1;
-							else
-								tempInt = 0;
 							if (options->pout == true)
 								printf("%d bits || ", SSL_get_cipher_bits(ssl, &tempInt2));
 							else
-								printf("%d bits  ", SSL_get_cipher_bits(ssl, &tempInt2));
-							while (tempInt != 0)
-							{
-								tempInt--;
-								printf(" ");
-							}
+								printf("%3d bits  ", SSL_get_cipher_bits(ssl, &tempInt2));
 							if (options->xmlOutput != 0)
-								fprintf(options->xmlOutput, "%d\" cipher=\"%s\" />\n", SSL_get_cipher_bits(ssl, &tempInt2), SSL_get_cipher_name(ssl));
+							{
+								char raw_description[BUFFERSIZE];
+								char parsed_description[BUFFERSIZE];
+								strncpy(raw_description, options->ciphers->description, BUFFERSIZE-1);
+
+								parseDescription(raw_description, parsed_description);
+								fprintf(options->xmlOutput, "%d\" cipher=\"%s\" %s %s />\n", SSL_get_cipher_bits(ssl, &tempInt2), SSL_get_cipher_name(ssl), parsed_description);
+							}
 							if (options->pout == true)
 								printf("%s ||\n", SSL_get_cipher_name(ssl));
 							else
@@ -799,11 +967,7 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 		}
 
 		// Disconnect from host
-#if defined( WIN32 )
-			closesocket(socketDescriptor);
-#else
-			close(socketDescriptor);
-#endif
+		CLOSESOCKET(socketDescriptor);
 	}
 
 	// Could not connect
@@ -878,7 +1042,7 @@ int getCertificate(struct sslCheckOptions *options)
 							if (options->xmlOutput != 0)
 							{
 								fileBIO = BIO_new(BIO_s_file());
-								BIO_set_fp(fileBIO, options->xmlOutput, BIO_NOCLOSE);
+								BIO_set_fp(fileBIO, options->xmlOutput, BIO_NOCLOSE); //TODO: <- Crashing here under win32... Why?
 							}
 
 							// Get Certificate...
@@ -1138,11 +1302,7 @@ int getCertificate(struct sslCheckOptions *options)
 		}
 
 		// Disconnect from host
-#if defined( WIN32 )
-			closesocket(socketDescriptor);
-#else
- 			close(socketDescriptor);
-#endif
+		CLOSESOCKET(socketDescriptor);
 	}
 
 	// Could not connect
@@ -1190,7 +1350,7 @@ int testHost(struct sslCheckOptions *options)
 	}
 #else
 	if (options->hostStruct == NULL)
-	{
+	{	
 		printf("%sERROR: Could not resolve hostname %s.%s\n", COL_RED, options->host, RESET);
 		return false;
 	}
@@ -1279,6 +1439,11 @@ int testHost(struct sslCheckOptions *options)
 	if (status == true)
 	{
 		status = getCertificate(options);
+	}
+
+	if (status == true)
+	{
+		status = testRenegotiation(options, TLSv1_client_method());
 	}
 
 	// XML Output...
