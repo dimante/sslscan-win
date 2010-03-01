@@ -32,15 +32,25 @@
 
 // Includes...
 #include <string.h>
+#if defined(WIN32)
+#include <stdio.h>
+#include <winsock2.h>
+#include <windows.h>
+#include <ws2tcpip.h>
+DWORD dwError;
+#else
 #include <netdb.h>
 #include <unistd.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
+#endif
+#include <sys/stat.h>
+
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/applink.c>
 
 // Defines...
 #define false 0
@@ -59,7 +69,7 @@
 #define tls_v1 3
 
 // Colour Console Output...
-#if !defined(__WIN32__)
+#if !defined(WIN32)
 const char *RESET = "[0m";			// DEFAULT
 const char *COL_RED = "[31m";		// RED
 const char *COL_BLUE = "[34m";		// BLUE
@@ -276,7 +286,11 @@ int tcpConnect(struct sslCheckOptions *options)
 		recv(socketDescriptor, buffer, BUFFERSIZE - 1, 0);
 		if (strncmp(buffer, "220", 3) != 0)
 		{
+#if defined( WIN32 )
+			closesocket(socketDescriptor);
+#else
 			close(socketDescriptor);
+#endif
 			printf("%s    ERROR: The host %s on port %d did not appear to be an SMTP service.%s\n", COL_RED, options->host, options->port, RESET);
 			return 0;
 		}
@@ -285,7 +299,11 @@ int tcpConnect(struct sslCheckOptions *options)
 		recv(socketDescriptor, buffer, BUFFERSIZE - 1, 0);
 		if (strncmp(buffer, "250", 3) != 0)
 		{
-			close(socketDescriptor);
+#if defined( WIN32 )
+			closesocket(socketDescriptor);
+#else
+ 			close(socketDescriptor);
+#endif
 			printf("%s    ERROR: The SMTP service on %s port %d did not respond with status 250 to our HELO.%s\n", COL_RED, options->host, options->port, RESET);
 			return 0;
 		}
@@ -294,7 +312,11 @@ int tcpConnect(struct sslCheckOptions *options)
 		recv(socketDescriptor, buffer, BUFFERSIZE - 1, 0);
 		if (strncmp(buffer, "220", 3) != 0)
 		{
-			close(socketDescriptor);
+#if defined( WIN32 )
+			closesocket(socketDescriptor);
+#else
+ 			close(socketDescriptor);
+#endif
 			printf("%s    ERROR: The SMTP service on %s port %d did not appear to support STARTTLS.%s\n", COL_RED, options->host, options->port, RESET);
 			return 0;
 		}
@@ -444,7 +466,11 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 
 	// Create request buffer...
 	memset(requestBuffer, 0, 200);
+#if defined( WIN32 )
+	_snprintf(requestBuffer, 199, "GET / HTTP/1.0\r\nUser-Agent: SSLScan\r\nHost: %s\r\n\r\n", options->host);
+#else
 	snprintf(requestBuffer, 199, "GET / HTTP/1.0\r\nUser-Agent: SSLScan\r\nHost: %s\r\n\r\n", options->host);
+#endif
 
 	// Connect to host
 	socketDescriptor = tcpConnect(options);
@@ -633,7 +659,11 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 		}
 
 		// Disconnect from host
-		close(socketDescriptor);
+#if defined( WIN32 )
+			closesocket(socketDescriptor);
+#else
+ 			close(socketDescriptor);
+#endif
 	}
 
 	// Could not connect
@@ -769,7 +799,11 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 		}
 
 		// Disconnect from host
-		close(socketDescriptor);
+#if defined( WIN32 )
+			closesocket(socketDescriptor);
+#else
+			close(socketDescriptor);
+#endif
 	}
 
 	// Could not connect
@@ -1104,7 +1138,11 @@ int getCertificate(struct sslCheckOptions *options)
 		}
 
 		// Disconnect from host
-		close(socketDescriptor);
+#if defined( WIN32 )
+			closesocket(socketDescriptor);
+#else
+ 			close(socketDescriptor);
+#endif
 	}
 
 	// Could not connect
@@ -1123,12 +1161,40 @@ int testHost(struct sslCheckOptions *options)
 	int status = true;
 
 	// Resolve Host Name
+#if defined (WIN32)
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int err;
+	wVersionRequested = MAKEWORD( 1, 1 );
+	err = WSAStartup( wVersionRequested, &wsaData );
+#endif
+
 	options->hostStruct = gethostbyname(options->host);
+
+#if defined (WIN32)
+	dwError = WSAGetLastError();
+	if (dwError != 0) {
+		if (dwError == WSAHOST_NOT_FOUND) {
+			//printf("Host not found\n");
+			printf("%sERROR: Could not resolve hostname %s: Host not found.%s\n", COL_RED, options->host, RESET);
+			return false;
+		} else if (dwError == WSANO_DATA) {
+			//printf("No data record found\n");
+			printf("%sERROR: Could not resolve hostname %s: No data record found.%s\n", COL_RED, options->host, RESET);
+			return false;
+		} else {
+			//printf("Function failed with error: %ld\n", dwError);
+			printf("%sERROR: Could not resolve hostname %s: Error(%ld).%s\n", COL_RED, options->host, dwError, RESET);
+			return false;
+		}
+	}
+#else
 	if (options->hostStruct == NULL)
 	{
 		printf("%sERROR: Could not resolve hostname %s.%s\n", COL_RED, options->host, RESET);
 		return false;
 	}
+#endif
 
 	// Configure Server Address and Port
 	options->serverAddress.sin_family = options->hostStruct->h_addrtype;
