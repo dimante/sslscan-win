@@ -795,9 +795,9 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 									}
 								} else {
 									status = false;
-									printf("\n\nFailed to send renegotiation request\n", COL_RED, RESET);
+									printf("\n\nFailed to send renegotiation request\n");
 								}
-#if ( OPENSSL_VERSION_NUMBER > 0x10000006L )
+#if ( OPENSSL_VERSION_NUMBER > 0x009080cfL )
 							}
 #endif
 							// Disconnect SSL over socket
@@ -928,7 +928,7 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 								strncpy(raw_description, options->ciphers->description, BUFFERSIZE-1);
 
 								parseDescription(raw_description, parsed_description);
-								fprintf(options->xmlOutput, "%d\" cipher=\"%s\" %s %s />\n", SSL_get_cipher_bits(ssl, &tempInt2), SSL_get_cipher_name(ssl), parsed_description);
+								fprintf(options->xmlOutput, "%d\" cipher=\"%s\" %s />\n", SSL_get_cipher_bits(ssl, &tempInt2), SSL_get_cipher_name(ssl), parsed_description);
 							}
 							if (options->pout == true)
 								printf("%s ||\n", SSL_get_cipher_name(ssl));
