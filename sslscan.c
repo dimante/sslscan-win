@@ -762,7 +762,8 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 							{
 								// If it supports secure renegotiations,
 								// it should have renegotioation support in general
-								status = true;	
+								status = true;
+								printf("\n\nSecure renegotiation supported\n");
 							}
 							else
 							{
@@ -788,14 +789,14 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 									{
 										/* our renegotiation is complete */
 										status = true;
-										printf("\n\nRenegotiation request succeeded\n");
+										printf("\n\nRenegotiation requests supported\n");
 									} else {
 										status = false;
 										printf("\n\nFailed to complete renegotiation\n");
 									}
 								} else {
 									status = false;
-									printf("\n\nFailed to send renegotiation request\n");
+									printf("\n\nRenegotiation requests not supported\n");
 								}
 #if ( OPENSSL_VERSION_NUMBER > 0x009080cfL )
 							}
