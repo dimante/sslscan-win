@@ -1,7 +1,7 @@
 /***************************************************************************
  *   sslscan - A SSL cipher scanning tool                                  *
- *   Copyright 2007-2009 by Ian Ventura-Whiting (Fizz)                     *
- *   fizz@titania.co.uk                                                    *
+ *   Copyright 2007-2010 by Ian Ventura-Whiting (fizz@titania.co.uk)       *
+ *                          Michael Boman (michael@michaelboman.org)       *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -98,13 +98,13 @@ const char *program_banner = "                   _\n"
                              "          / __/ __| / __|/ __/ _` | '_ \\\n"
                              "          \\__ \\__ \\ \\__ \\ (_| (_| | | | |\n"
                              "          |___/___/_|___/\\___\\__,_|_| |_|\n\n"
-                             "                  Version 1.8.2-win\n"
+                             "                  Version 1.9.0-win\n"
                              "             http://www.titania.co.uk\n"
-                             "        Copyright Ian Ventura-Whiting 2009\n"
+                             " Copyright 2010 Ian Ventura-Whiting / Michael Boman\n"
 							 "    Compiled against " OPENSSL_VERSION_TEXT "\n";
 
-const char *program_version = "sslscan version 1.8.2\n" OPENSSL_VERSION_TEXT "\nhttp://www.titania.co.uk\nCopyright (C) Ian Ventura-Whiting 2009\n";
-const char *xml_version = "1.8.2-win";
+const char *program_version = "sslscan version 1.9.0-win\n" OPENSSL_VERSION_TEXT "\nhttp://www.titania.co.uk\nCopyright (C) Ian Ventura-Whiting 2009\n";
+const char *xml_version = "1.9.0-win";
 
 
 struct sslCipher
