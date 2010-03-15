@@ -46,6 +46,7 @@ DWORD dwError;
 #include <fcntl.h>
 #endif
 #include <sys/stat.h>
+#include <time.h>
 
 #if defined (WIN32)
 #define CLOSESOCKET(s) closesocket(s)
@@ -1320,6 +1321,9 @@ int testHost(struct sslCheckOptions *options)
 	// Variables...
 	struct sslCipher *sslCipherPointer;
 	int status = true;
+	time_t rawtime;
+	struct tm * timeinfo;
+	char datetime[BUFFERSIZE];
 
 	// Resolve Host Name
 #if defined (WIN32)
@@ -1364,7 +1368,13 @@ int testHost(struct sslCheckOptions *options)
 
 	// XML Output...
 	if (options->xmlOutput != 0)
-		fprintf(options->xmlOutput, " <ssltest host=\"%s\" port=\"%d\">\n", options->host, options->port);
+	{
+		time( &rawtime );
+		timeinfo = gmtime( &rawtime );
+		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S %Z", timeinfo);
+
+		fprintf(options->xmlOutput, " <ssltest host=\"%s\" port=\"%d\" time=\"%s\">\n", options->host, options->port, datetime);
+	}
 
 	// Test supported ciphers...
 	printf("\n%sTesting SSL server %s on port %d%s\n\n", COL_GREEN, options->host, options->port, RESET);
