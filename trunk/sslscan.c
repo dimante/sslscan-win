@@ -132,6 +132,7 @@ struct sslCheckOptions
 	int pout;
 	int sslbugs;
 	int http;
+	int quiet;
 
 	// File Handles...
 	FILE *xmlOutput;
@@ -544,10 +545,13 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 					{
 						if (options->xmlOutput != 0)
 							fprintf(options->xmlOutput, "accepted\"");
-						if (options->pout == true)
-							printf("|| Accepted || ");
-						else
-							printf("    Accepted  ");
+						if( options->quiet == false )
+						{
+							if (options->pout == true)
+								printf("|| Accepted || ");
+							else
+								printf("    Accepted  ");
+						}
 						if (options->http == true)
 						{
 
@@ -567,16 +571,18 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 								buffer[loop] = 0;
 
 								// Output HTTP code...
-								if (options->pout == true)
-									printf("%s || ", buffer + 9);
-								else
-								{
-									printf("%s", buffer + 9);
-									loop = strlen(buffer + 9);
-									while (loop < 17)
+								if (options->quiet == false) {
+									if (options->pout == true)
+										printf("%s || ", buffer + 9);
+									else
 									{
-										loop++;
-										printf(" ");
+										printf("%s", buffer + 9);
+										loop = strlen(buffer + 9);
+										while (loop < 17)
+										{
+											loop++;
+											printf(" ");
+										}
 									}
 								}
 								if (options->xmlOutput != 0)
@@ -584,11 +590,14 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 							}
 							else
 							{
-								// Output HTTP code...
-								if (options->pout == true)
-									printf("|| || ");
-								else
-									printf("                 ");
+								if( options->quiet == false)
+								{
+									// Output HTTP code...
+									if (options->pout == true)
+										printf("|| || ");
+									else
+										printf("                 ");
+								}
 							}
 						}
 					}
@@ -596,38 +605,44 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 					{
 						if (options->xmlOutput != 0)
 							fprintf(options->xmlOutput, "rejected\"");
-						if (options->http == true)
+						if (options->quiet == false)
 						{
-							if (options->pout == true)
-								printf("|| Rejected || N/A || ");
+							if (options->http == true)
+							{
+								if (options->pout == true)
+									printf("|| Rejected || N/A || ");
+								else
+									printf("    Rejected  N/A              ");
+							}
 							else
-								printf("    Rejected  N/A              ");
-						}
-						else
-						{
-							if (options->pout == true)
-								printf("|| Rejected || ");
-							else
-								printf("    Rejected  ");
+							{
+								if (options->pout == true)
+									printf("|| Rejected || ");
+								else
+									printf("    Rejected  ");
+							}
 						}
 					}
 					else
 					{
 						if (options->xmlOutput != 0)
 							fprintf(options->xmlOutput, "failed\"");
-						if (options->http == true)
+						if (options->quiet == false)
 						{
-							if (options->pout == true)
-								printf("|| Failed || N/A || ");
+							if (options->http == true)
+							{
+								if (options->pout == true)
+									printf("|| Failed || N/A || ");
+								else
+									printf("    Failed    N/A              ");
+							}
 							else
-								printf("    Failed    N/A              ");
-						}
-						else
-						{
-							if (options->pout == true)
-								printf("|| Failed || ");
-							else
-								printf("    Failed    ");
+							{
+								if (options->pout == true)
+									printf("|| Failed || ");
+								else
+									printf("    Failed    ");
+							}
 						}
 					}
 					if (options->xmlOutput != 0)
@@ -636,33 +651,45 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 					{
 						if (options->xmlOutput != 0)
 							fprintf(options->xmlOutput, "SSLv2\" bits=\"");
-						if (options->pout == true)
-							printf("SSLv2 || ");
-						else
-							printf("SSLv2  ");
+						if (options->quiet == false)
+						{
+							if (options->pout == true)
+								printf("SSLv2 || ");
+							else
+								printf("SSLv2  ");
+						}
 					}
 					else if (sslCipherPointer->sslMethod == SSLv3_client_method())
 					{
 						if (options->xmlOutput != 0)
 							fprintf(options->xmlOutput, "SSLv3\" bits=\"");
-						if (options->pout == true)
-							printf("SSLv3 || ");
-						else
-							printf("SSLv3  ");
+						if (options->quiet == false)
+						{
+							if (options->pout == true)
+								printf("SSLv3 || ");
+							else
+								printf("SSLv3  ");
+						}
 					}
 					else
 					{
 						if (options->xmlOutput != 0)
 							fprintf(options->xmlOutput, "TLSv1\" bits=\"");
-						if (options->pout == true)
-							printf("TLSv1 || ");
-						else
-							printf("TLSv1  ");
+						if (options->quiet == false)
+						{
+							if (options->pout == true)
+								printf("TLSv1 || ");
+							else
+								printf("TLSv1  ");
+						}
 					}
-					if (options->pout == true)
-						printf("%d || ", sslCipherPointer->bits);
-					else
-						printf("%3d bits  ", sslCipherPointer->bits);
+					if (options->quiet == false)
+					{
+						if (options->pout == true)
+							printf("%d || ", sslCipherPointer->bits);
+						else
+							printf("%3d bits  ", sslCipherPointer->bits);
+					}
 
 					if (options->xmlOutput != 0)
 					{
@@ -671,10 +698,13 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 						fprintf(options->xmlOutput, "%d\" cipher=\"%s\" %s />\n", sslCipherPointer->bits, sslCipherPointer->name, dest);
 					}
 
-					if (options->pout == true)
-						printf("%s ||\n", sslCipherPointer->name);
-					else
-						printf("%s\n", sslCipherPointer->name);
+					if (options->quiet == false)
+					{
+						if (options->pout == true)
+							printf("%s ||\n", sslCipherPointer->name);
+						else
+							printf("%s\n", sslCipherPointer->name);
+					}
 				}
 
 				// Disconnect SSL over socket
@@ -765,7 +795,8 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 								// If it supports secure renegotiations,
 								// it should have renegotioation support in general
 								status = true;
-								printf("\n\nSecure renegotiation supported\n");
+								if (options->quiet == false)
+									printf("\n\nSecure renegotiation supported\n");
 							}
 							else
 							{
@@ -791,14 +822,16 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 									{
 										/* our renegotiation is complete */
 										status = true;
-										printf("\n\nRenegotiation requests supported\n");
+										if (options->quiet == false)
+											printf("\n\nRenegotiation requests supported\n");
 									} else {
 										status = false;
 										fprintf(stderr, "\n\nFailed to complete renegotiation\n");
 									}
 								} else {
 									status = false;
-									printf("\n\nRenegotiation requests not supported\n");
+									if (options->quiet == false)
+										printf("\n\nRenegotiation requests not supported\n");
 								}
 #if ( OPENSSL_VERSION_NUMBER > 0x009080cfL )
 							}
@@ -897,33 +930,45 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 							{
 								if (options->xmlOutput != 0)
 									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"SSLv2\" bits=\"");
-								if (options->pout == true)
-									printf("|| SSLv2 || ");
-								else
-									printf("    SSLv2  ");
+								if (options->quiet == false)
+								{
+									if (options->pout == true)
+										printf("|| SSLv2 || ");
+									else
+										printf("    SSLv2  ");
+								}
 							}
 							else if (sslMethod == SSLv3_client_method())
 							{
 								if (options->xmlOutput != 0)
 									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"SSLv3\" bits=\"");
-								if (options->pout == true)
-									printf("|| SSLv3 || ");
-								else
-									printf("    SSLv3  ");
+								if (options->quiet == false)
+								{
+									if (options->pout == true)
+										printf("|| SSLv3 || ");
+									else
+										printf("    SSLv3  ");
+								}
 							}
 							else
 							{
 								if (options->xmlOutput != 0)
 									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"TLSv1\" bits=\"");
-								if (options->pout == true)
-									printf("|| TLSv1 || ");
-								else
-									printf("    TLSv1  ");
+								if (options->quiet == false)
+								{
+									if (options->pout == true)
+										printf("|| TLSv1 || ");
+									else
+										printf("    TLSv1  ");
+								}
 							}
-							if (options->pout == true)
-								printf("%d bits || ", SSL_get_cipher_bits(ssl, &tempInt2));
-							else
-								printf("%3d bits  ", SSL_get_cipher_bits(ssl, &tempInt2));
+							if (options->quiet == false)
+							{
+								if (options->pout == true)
+									printf("%d bits || ", SSL_get_cipher_bits(ssl, &tempInt2));
+								else
+									printf("%3d bits  ", SSL_get_cipher_bits(ssl, &tempInt2));
+							}
 							if (options->xmlOutput != 0)
 							{
 								char raw_description[BUFFERSIZE];
@@ -933,10 +978,13 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 								parseDescription(raw_description, parsed_description);
 								fprintf(options->xmlOutput, "%d\" cipher=\"%s\" %s />\n", SSL_get_cipher_bits(ssl, &tempInt2), SSL_get_cipher_name(ssl), parsed_description);
 							}
-							if (options->pout == true)
-								printf("%s ||\n", SSL_get_cipher_name(ssl));
-							else
-								printf("%s\n", SSL_get_cipher_name(ssl));
+							if (options->quiet == false)
+							{
+								if (options->pout == true)
+									printf("%s ||\n", SSL_get_cipher_name(ssl));
+								else
+									printf("%s\n", SSL_get_cipher_name(ssl));
+							}
 
 							// Disconnect SSL over socket
 							SSL_shutdown(ssl);
@@ -1049,7 +1097,8 @@ int getCertificate(struct sslCheckOptions *options)
 							}
 
 							// Get Certificate...
-							printf("\n  %sSSL Certificate:%s\n", COL_BLUE, RESET);
+							if (options->quiet == false)
+								printf("\n  %sSSL Certificate:%s\n", COL_BLUE, RESET);
 							if (options->xmlOutput != 0)
 								fprintf(options->xmlOutput, "  <certificate>\n");
 							x509Cert = SSL_get_peer_certificate(ssl);
@@ -1062,7 +1111,8 @@ int getCertificate(struct sslCheckOptions *options)
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_VERSION))
 								{
 									tempLong = X509_get_version(x509Cert);
-									printf("    Version: %lu\n", tempLong);
+									if (options->quiet == false)
+										printf("    Version: %lu\n", tempLong);
 									if (options->xmlOutput != 0)
 										fprintf(options->xmlOutput, "   <version>%lu</version>\n", tempLong);
 								}
@@ -1073,13 +1123,15 @@ int getCertificate(struct sslCheckOptions *options)
 									tempLong = ASN1_INTEGER_get(X509_get_serialNumber(x509Cert));
 									if (tempLong < 1)
 									{
-										printf("    Serial Number: -%lu\n", tempLong);
+										if (options->quiet == false)
+											printf("    Serial Number: -%lu\n", tempLong);
 										if (options->xmlOutput != 0)
 											fprintf(options->xmlOutput, "   <serial>-%lu</serial>\n", tempLong);
 									}
 									else
 									{
-										printf("    Serial Number: %lu\n", tempLong);
+										if (options->quiet == false)
+											printf("    Serial Number: %lu\n", tempLong);
 										if (options->xmlOutput != 0)
 											fprintf(options->xmlOutput, "   <serial>%lu</serial>\n", tempLong);
 									}
@@ -1088,9 +1140,12 @@ int getCertificate(struct sslCheckOptions *options)
 								// Signature Algo...
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_SIGNAME))
 								{
-									printf("    Signature Algorithm: ");
-									i2a_ASN1_OBJECT(stdoutBIO, x509Cert->cert_info->signature->algorithm);
-									printf("\n");
+									if (options->quiet == false)
+									{
+										printf("    Signature Algorithm: ");
+										i2a_ASN1_OBJECT(stdoutBIO, x509Cert->cert_info->signature->algorithm);
+										printf("\n");
+									}
 									if (options->xmlOutput != 0)
 									{
 										fprintf(options->xmlOutput, "   <signature-algorithm>");
@@ -1103,7 +1158,8 @@ int getCertificate(struct sslCheckOptions *options)
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_ISSUER))
 								{
 									X509_NAME_oneline(X509_get_issuer_name(x509Cert), buffer, sizeof(buffer) - 1);
-									printf("    Issuer: %s\n", buffer);
+									if (options->quiet == false)
+										printf("    Issuer: %s\n", buffer);
 									if (options->xmlOutput != 0)
 										fprintf(options->xmlOutput, "   <issuer>%s</issuer>\n", buffer);
 								}
@@ -1111,17 +1167,23 @@ int getCertificate(struct sslCheckOptions *options)
 								// Validity...
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_VALIDITY))
 								{
-									printf("    Not valid before: ");
-									ASN1_TIME_print(stdoutBIO, X509_get_notBefore(x509Cert));
+									if (options->quiet == false)
+									{
+										printf("    Not valid before: ");
+										ASN1_TIME_print(stdoutBIO, X509_get_notBefore(x509Cert));
+									}
 									if (options->xmlOutput != 0)
 									{
 										fprintf(options->xmlOutput, "   <not-valid-before>");
 										ASN1_TIME_print(fileBIO, X509_get_notBefore(x509Cert));
 										fprintf(options->xmlOutput, "</not-valid-before>\n");
 									}
-									printf("\n    Not valid after: ");
-									ASN1_TIME_print(stdoutBIO, X509_get_notAfter(x509Cert));
-									printf("\n");
+									if (options->quiet == false)
+									{
+										printf("\n    Not valid after: ");
+										ASN1_TIME_print(stdoutBIO, X509_get_notAfter(x509Cert));
+										printf("\n");
+									}
 									if (options->xmlOutput != 0)
 									{
 										fprintf(options->xmlOutput, "   <not-valid-after>");
@@ -1134,7 +1196,8 @@ int getCertificate(struct sslCheckOptions *options)
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_SUBJECT))
 								{
 									X509_NAME_oneline(X509_get_subject_name(x509Cert), buffer, sizeof(buffer) - 1);
-									printf("    Subject: %s\n", buffer);
+									if (options->quiet == false)
+										printf("    Subject: %s\n", buffer);
 									if (options->xmlOutput != 0)
 										fprintf(options->xmlOutput, "   <subject>%s</subject>\n", buffer);
 								}
@@ -1142,9 +1205,12 @@ int getCertificate(struct sslCheckOptions *options)
 								// Public Key Algo...
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_PUBKEY))
 								{
-									printf("    Public Key Algorithm: ");
-									i2a_ASN1_OBJECT(stdoutBIO, x509Cert->cert_info->key->algor->algorithm);
-									printf("\n");
+									if (options->quiet == false)
+									{
+										printf("    Public Key Algorithm: ");
+										i2a_ASN1_OBJECT(stdoutBIO, x509Cert->cert_info->key->algor->algorithm);
+										printf("\n");
+									}
 									if (options->xmlOutput != 0)
 									{
 										fprintf(options->xmlOutput, "   <pk-algorithm>");
@@ -1156,7 +1222,8 @@ int getCertificate(struct sslCheckOptions *options)
 									publicKey = X509_get_pubkey(x509Cert);
 									if (publicKey == NULL)
 									{
-										printf("    Public Key: Could not load\n");
+										if (options->quiet == false)
+											printf("    Public Key: Could not load\n");
 										if (options->xmlOutput != 0)
 											fprintf(options->xmlOutput, "   <pk error=\"true\" />\n");
 									}
@@ -1165,40 +1232,47 @@ int getCertificate(struct sslCheckOptions *options)
 										switch (publicKey->type)
 										{
 											case EVP_PKEY_RSA:
-												printf("    RSA Public Key: (%d bit)\n", BN_num_bits(publicKey->pkey.rsa->n));
-												if (options->xmlOutput != 0)
-													fprintf(options->xmlOutput, "   <pk error=\"false\" type=\"RSA\" bits=\"%d\">\n", BN_num_bits(publicKey->pkey.rsa->n));
-												RSA_print(stdoutBIO, publicKey->pkey.rsa, 6);
+												if (options->quiet == false)
+												{
+													printf("    RSA Public Key: (%d bit)\n", BN_num_bits(publicKey->pkey.rsa->n));
+													RSA_print(stdoutBIO, publicKey->pkey.rsa, 6);
+												}
 												if (options->xmlOutput != 0)
 												{
+													fprintf(options->xmlOutput, "   <pk error=\"false\" type=\"RSA\" bits=\"%d\">\n", BN_num_bits(publicKey->pkey.rsa->n));
 													RSA_print(fileBIO, publicKey->pkey.rsa, 4);
 													fprintf(options->xmlOutput, "   </pk>\n");
 												}
 												break;
 											case EVP_PKEY_DSA:
-												printf("    DSA Public Key:\n");
-												if (options->xmlOutput != 0)
-													fprintf(options->xmlOutput, "   <pk error=\"false\" type=\"DSA\">\n");
-												DSA_print(stdoutBIO, publicKey->pkey.dsa, 6);
+												if (options->quiet == false)
+												{
+													printf("    DSA Public Key:\n");
+													DSA_print(stdoutBIO, publicKey->pkey.dsa, 6);
+												}
 												if (options->xmlOutput != 0)
 												{
+													fprintf(options->xmlOutput, "   <pk error=\"false\" type=\"DSA\">\n");
 													DSA_print(fileBIO, publicKey->pkey.dsa, 4);
 													fprintf(options->xmlOutput, "   </pk>\n");
 												}
 												break;
 											case EVP_PKEY_EC:
-												printf("    EC Public Key:\n");
-												if (options->xmlOutput != 0)
-													fprintf(options->xmlOutput, "   <pk error=\"false\" type=\"EC\">\n");
-												EC_KEY_print(stdoutBIO, publicKey->pkey.ec, 6);
+												if (options->quiet == false)
+												{
+													printf("    EC Public Key:\n");
+													EC_KEY_print(stdoutBIO, publicKey->pkey.ec, 6);
+												}
 												if (options->xmlOutput != 0)
 												{
+													fprintf(options->xmlOutput, "   <pk error=\"false\" type=\"EC\">\n");
 													EC_KEY_print(fileBIO, publicKey->pkey.ec, 4);
 													fprintf(options->xmlOutput, "   </pk>\n");
 												}
 												break;
 											default:
-												printf("    Public Key: Unknown\n");
+												if (options->quiet == false)
+													printf("    Public Key: Unknown\n");
 												if (options->xmlOutput != 0)
 													fprintf(options->xmlOutput, "   <pk error=\"true\" type=\"unknown\" />\n");
 												break;
@@ -1213,7 +1287,8 @@ int getCertificate(struct sslCheckOptions *options)
 								{
 									if (sk_X509_EXTENSION_num(x509Cert->cert_info->extensions) > 0)
 									{
-										printf("    X509v3 Extensions:\n");
+										if (options->quiet == false)
+											printf("    X509v3 Extensions:\n");
 										if (options->xmlOutput != 0)
 											fprintf(options->xmlOutput, "   <X509v3-Extensions>\n");
 										for (tempInt = 0; tempInt < sk_X509_EXTENSION_num(x509Cert->cert_info->extensions); tempInt++)
@@ -1222,11 +1297,14 @@ int getCertificate(struct sslCheckOptions *options)
 											extension = sk_X509_EXTENSION_value(x509Cert->cert_info->extensions, tempInt);
 
 											// Print Extension name...
-											printf("      ");
 											asn1Object = X509_EXTENSION_get_object(extension);
-											i2a_ASN1_OBJECT(stdoutBIO, asn1Object);
 											tempInt2 = X509_EXTENSION_get_critical(extension);
-											BIO_printf(stdoutBIO, ": %s\n", tempInt2 ? "critical" : "");
+											if (options->quiet == false)
+											{
+												printf("      ");											
+												i2a_ASN1_OBJECT(stdoutBIO, asn1Object);
+												BIO_printf(stdoutBIO, ": %s\n", tempInt2 ? "critical" : "");
+											}
 											if (options->xmlOutput != 0)
 											{
 												fprintf(options->xmlOutput, "    <extension name=\"");
@@ -1235,18 +1313,22 @@ int getCertificate(struct sslCheckOptions *options)
 											}
 
 											// Print Extension value...
-											if (!X509V3_EXT_print(stdoutBIO, extension, X509_FLAG_COMPAT, 8))
+											if (options->quiet == false)
 											{
-												printf("        ");
-												M_ASN1_OCTET_STRING_print(stdoutBIO, extension->value);
+												if (!X509V3_EXT_print(stdoutBIO, extension, X509_FLAG_COMPAT, 8))
+												{
+													printf("        ");
+													M_ASN1_OCTET_STRING_print(stdoutBIO, extension->value);
+													printf("\n");
+												}
 											}
+
 											if (options->xmlOutput != 0)
 											{
 												if (!X509V3_EXT_print(fileBIO, extension, X509_FLAG_COMPAT, 0))
 													M_ASN1_OCTET_STRING_print(fileBIO, extension->value);
 												fprintf(options->xmlOutput, "</extension>\n");
-											}
-											printf("\n");
+											}	
 										}
 										if (options->xmlOutput != 0)
 											fprintf(options->xmlOutput, "   </X509v3-Extensions>\n");
@@ -1254,13 +1336,15 @@ int getCertificate(struct sslCheckOptions *options)
 								}
 
 								// Verify Certificate...
-								printf("  Verify Certificate:\n");
-								verifyError = SSL_get_verify_result(ssl);
-								if (verifyError == X509_V_OK)
-									printf("    Certificate passed verification\n");
-								else
-									printf("    %s\n", X509_verify_cert_error_string(verifyError));
-
+								if (options->quiet == false)
+								{
+									printf("  Verify Certificate:\n");
+									verifyError = SSL_get_verify_result(ssl);
+									if (verifyError == X509_V_OK)
+										printf("    Certificate passed verification\n");
+									else
+										printf("    %s\n", X509_verify_cert_error_string(verifyError));
+								}
 								// Free X509 Certificate...
 								X509_free(x509Cert);
 							}
@@ -1378,12 +1462,15 @@ int testHost(struct sslCheckOptions *options)
 	}
 
 	// Test supported ciphers...
-	printf("\n%sTesting SSL server %s on port %d%s\n\n", COL_GREEN, options->host, options->port, RESET);
-	printf("  %sSupported Server Cipher(s):%s\n", COL_BLUE, RESET);
-	if ((options->http == true) && (options->pout == true))
-		printf("|| Status || HTTP Code || Version || Bits || Cipher ||\n");
-	else if (options->pout == true)
-		printf("|| Status || Version || Bits || Cipher ||\n");
+	if (options->quiet == false)
+	{
+		printf("\n%sTesting SSL server %s on port %d%s\n\n", COL_GREEN, options->host, options->port, RESET);
+		printf("  %sSupported Server Cipher(s):%s\n", COL_BLUE, RESET);
+		if ((options->http == true) && (options->pout == true))
+			printf("|| Status || HTTP Code || Version || Bits || Cipher ||\n");
+		else if (options->pout == true)
+			printf("|| Status || Version || Bits || Cipher ||\n");
+	}
 	sslCipherPointer = options->ciphers;
 	while ((sslCipherPointer != 0) && (status == true))
 	{
@@ -1424,9 +1511,12 @@ int testHost(struct sslCheckOptions *options)
 	if (status == true)
 	{
 		// Test prefered ciphers...
-		printf("\n  %sPrefered Server Cipher(s):%s\n", COL_BLUE, RESET);
-		if (options->pout == true)
-			printf("|| Version || Bits || Cipher ||\n");
+		if (options->quiet == false)
+		{
+			printf("\n  %sPrefered Server Cipher(s):%s\n", COL_BLUE, RESET);
+			if (options->pout == true)
+				printf("|| Version || Bits || Cipher ||\n");
+		}
 		switch (options->sslVersion)
 		{
 			case ssl_all:
@@ -1480,9 +1570,6 @@ int main(int argc, char *argv[])
 	int mode = mode_help;
 	FILE *targetsFile;
 	char line[1024];
-	time_t rawtime;
-    struct tm * timeinfo;
-	char datetime[BUFFERSIZE];
     
 	// Init...
 	memset(&options, 0, sizeof(struct sslCheckOptions));
@@ -1493,6 +1580,7 @@ int main(int argc, char *argv[])
 	options.starttls = false;
 	options.sslVersion = ssl_all;
 	options.pout = false;
+	options.quiet = false;
 	SSL_library_init();
 
 	// Get program parameters
@@ -1524,6 +1612,10 @@ int main(int argc, char *argv[])
 		// P Output
 		else if (strcmp("-p", argv[argLoop]) == 0)
 			options.pout = true;
+
+		// Quiet output
+		else if (strcmp("--quiet", argv[argLoop]) == 0)
+			options.quiet = true;
 
 		// Client Certificates
 		else if (strncmp("--certs=", argv[argLoop], 8) == 0)
@@ -1598,12 +1690,8 @@ int main(int argc, char *argv[])
 			exit(0);
 		}
 		
-		time( &rawtime );
-		timeinfo = gmtime( &rawtime );
-		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S %Z", timeinfo);
-
 		// Output file header...
-		fprintf(options.xmlOutput, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<document title=\"SSLScan Results\" version=\"%s\" web=\"http://www.titania.co.uk\" scantime=\"%s\">\n", xml_version, datetime);
+		fprintf(options.xmlOutput, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<document title=\"SSLScan Results\" version=\"%s\" web=\"http://www.titania.co.uk\">\n", xml_version);
 	}
 
 	switch (mode)
@@ -1647,6 +1735,7 @@ int main(int argc, char *argv[])
 			printf("                       arounds.\n");
 			printf("  %s--xml=<file>%s         Output results to an XML file.\n", COL_GREEN, RESET);
 			printf("  %s--version%s            Display the program version.\n", COL_GREEN, RESET);
+			printf("  %s--quiet%s              Be quiet\n", COL_GREEN, RESET);
 			printf("  %s--help%s               Display the  help text  you are  now\n", COL_GREEN, RESET);
 			printf("                       reading.\n");
 			printf("%sExample:%s\n", COL_BLUE, RESET);
@@ -1656,7 +1745,8 @@ int main(int argc, char *argv[])
 		// Check a single host/port ciphers...
 		case mode_single:
 		case mode_multiple:
-			printf("%s%s%s", COL_BLUE, program_banner, RESET);
+			if (options.quiet == false)
+				printf("%s%s%s", COL_BLUE, program_banner, RESET);
 
 			SSLeay_add_all_algorithms();
 			ERR_load_crypto_strings();
