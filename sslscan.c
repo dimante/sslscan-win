@@ -93,19 +93,20 @@ const char *COL_BLUE = "";
 const char *COL_GREEN = "";
 #endif
 
+#define SSLSCAN_VERSION "1.9.0-win"
 
 const char *program_banner = "                   _\n"
                              "           ___ ___| |___  ___ __ _ _ __\n"
                              "          / __/ __| / __|/ __/ _` | '_ \\\n"
                              "          \\__ \\__ \\ \\__ \\ (_| (_| | | | |\n"
                              "          |___/___/_|___/\\___\\__,_|_| |_|\n\n"
-                             "                  Version 1.9.0-win\n"
+                             "                  Version " SSLSCAN_VERSION "\n"
                              "             http://www.titania.co.uk\n"
                              " Copyright 2010 Ian Ventura-Whiting / Michael Boman\n"
 							 "    Compiled against " OPENSSL_VERSION_TEXT "\n";
 
-const char *program_version = "sslscan version 1.9.0-win\n" OPENSSL_VERSION_TEXT "\nhttp://www.titania.co.uk\nCopyright (C) Ian Ventura-Whiting 2009\n";
-const char *xml_version = "1.9.0-win";
+const char *program_version = "sslscan version " SSLSCAN_VERSION "\n" OPENSSL_VERSION_TEXT "\nhttp://www.titania.co.uk\nCopyright (C) Ian Ventura-Whiting 2009\n";
+const char *xml_version = SSLSCAN_VERSION;
 
 
 struct sslCipher
@@ -842,7 +843,7 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 		status = false;
 
 	if (options->xmlOutput != 0)
-		fprintf(options->xmlOutput, " <renegotiation supported=\"%d\" secure=\"%d\"/>\n", status, secure);
+		fprintf(options->xmlOutput, "  <renegotiation supported=\"%d\" secure=\"%d\" />\n", status, secure);
 
 	return status;					
 
@@ -1479,7 +1480,10 @@ int main(int argc, char *argv[])
 	int mode = mode_help;
 	FILE *targetsFile;
 	char line[1024];
-
+	time_t rawtime;
+    struct tm * timeinfo;
+	char datetime[BUFFERSIZE];
+    
 	// Init...
 	memset(&options, 0, sizeof(struct sslCheckOptions));
 	options.port = 443;
@@ -1593,9 +1597,13 @@ int main(int argc, char *argv[])
 			printf("%sERROR: Could not open XML output file %s.%s\n", COL_RED, argv[xmlArg] + 6, RESET);
 			exit(0);
 		}
+		
+		time( &rawtime );
+		timeinfo = gmtime( &rawtime );
+		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S %Z", timeinfo);
 
 		// Output file header...
-		fprintf(options.xmlOutput, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<document title=\"SSLScan Results\" version=\"%s\" web=\"http://www.titania.co.uk\">\n", xml_version);
+		fprintf(options.xmlOutput, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<document title=\"SSLScan Results\" version=\"%s\" web=\"http://www.titania.co.uk\" scantime=\"%s\">\n", xml_version, datetime);
 	}
 
 	switch (mode)
