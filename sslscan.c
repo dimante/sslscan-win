@@ -1093,7 +1093,7 @@ int getCertificate(struct sslCheckOptions *options)
 							if (options->xmlOutput != 0)
 							{
 								fileBIO = BIO_new(BIO_s_file());
-								BIO_set_fp(fileBIO, options->xmlOutput, BIO_NOCLOSE); //TODO: <- Crashing here under win32... Why?
+								BIO_set_fp(fileBIO, options->xmlOutput, BIO_NOCLOSE); //TODO: See http://code.google.com/p/sslscan-win/issues/detail?id=2
 							}
 
 							// Get Certificate...
@@ -1171,21 +1171,15 @@ int getCertificate(struct sslCheckOptions *options)
 									{
 										printf("    Not valid before: ");
 										ASN1_TIME_print(stdoutBIO, X509_get_notBefore(x509Cert));
-									}
-									if (options->xmlOutput != 0)
-									{
-										fprintf(options->xmlOutput, "   <not-valid-before>");
-										ASN1_TIME_print(fileBIO, X509_get_notBefore(x509Cert));
-										fprintf(options->xmlOutput, "</not-valid-before>\n");
-									}
-									if (options->quiet == false)
-									{
 										printf("\n    Not valid after: ");
 										ASN1_TIME_print(stdoutBIO, X509_get_notAfter(x509Cert));
 										printf("\n");
 									}
 									if (options->xmlOutput != 0)
 									{
+										fprintf(options->xmlOutput, "   <not-valid-before>");
+										ASN1_TIME_print(fileBIO, X509_get_notBefore(x509Cert));
+										fprintf(options->xmlOutput, "</not-valid-before>\n");
 										fprintf(options->xmlOutput, "   <not-valid-after>");
 										ASN1_TIME_print(fileBIO, X509_get_notAfter(x509Cert));
 										fprintf(options->xmlOutput, "</not-valid-after>\n");
@@ -1456,7 +1450,7 @@ int testHost(struct sslCheckOptions *options)
 	{
 		time( &rawtime );
 		timeinfo = gmtime( &rawtime );
-		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S %Z", timeinfo);
+		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S +0000", timeinfo); //TODO: Output timezone as offset to GMT
 
 		fprintf(options->xmlOutput, " <ssltest host=\"%s\" port=\"%d\" time=\"%s\">\n", options->host, options->port, datetime);
 	}
@@ -1634,6 +1628,7 @@ int main(int argc, char *argv[])
 		{
 			options.sslVersion = tls_v1;
 			options.starttls = true;
+			options.port = 25; // default to SMTP when you want to use STARTTLS
 		}
 
 		// SSL v2 only...
