@@ -129,7 +129,6 @@ struct sslCheckOptions
 	int starttls;
 	int sslVersion;
 	int targets;
-	int pout;
 	int sslbugs;
 	int http;
 	int quiet;
@@ -547,9 +546,6 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 							fprintf(options->xmlOutput, "accepted\"");
 						if( options->quiet == false )
 						{
-							if (options->pout == true)
-								printf("|| Accepted || ");
-							else
 								printf("    Accepted  ");
 						}
 						if (options->http == true)
@@ -572,17 +568,12 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 
 								// Output HTTP code...
 								if (options->quiet == false) {
-									if (options->pout == true)
-										printf("%s || ", buffer + 9);
-									else
+									printf("%s", buffer + 9);
+									loop = strlen(buffer + 9);
+									while (loop < 17)
 									{
-										printf("%s", buffer + 9);
-										loop = strlen(buffer + 9);
-										while (loop < 17)
-										{
-											loop++;
-											printf(" ");
-										}
+										loop++;
+										printf(" ");
 									}
 								}
 								if (options->xmlOutput != 0)
@@ -593,10 +584,7 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 								if( options->quiet == false)
 								{
 									// Output HTTP code...
-									if (options->pout == true)
-										printf("|| || ");
-									else
-										printf("                 ");
+									printf("                 ");
 								}
 							}
 						}
@@ -609,16 +597,10 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 						{
 							if (options->http == true)
 							{
-								if (options->pout == true)
-									printf("|| Rejected || N/A || ");
-								else
 									printf("    Rejected  N/A              ");
 							}
 							else
 							{
-								if (options->pout == true)
-									printf("|| Rejected || ");
-								else
 									printf("    Rejected  ");
 							}
 						}
@@ -631,17 +613,11 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 						{
 							if (options->http == true)
 							{
-								if (options->pout == true)
-									printf("|| Failed || N/A || ");
-								else
 									printf("    Failed    N/A              ");
 							}
 							else
 							{
-								if (options->pout == true)
-									printf("|| Failed || ");
-								else
-									printf("    Failed    ");
+								printf("    Failed    ");
 							}
 						}
 					}
@@ -653,10 +629,7 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 							fprintf(options->xmlOutput, "SSLv2\" bits=\"");
 						if (options->quiet == false)
 						{
-							if (options->pout == true)
-								printf("SSLv2 || ");
-							else
-								printf("SSLv2  ");
+							printf("SSLv2  ");
 						}
 					}
 					else if (sslCipherPointer->sslMethod == SSLv3_client_method())
@@ -665,10 +638,7 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 							fprintf(options->xmlOutput, "SSLv3\" bits=\"");
 						if (options->quiet == false)
 						{
-							if (options->pout == true)
-								printf("SSLv3 || ");
-							else
-								printf("SSLv3  ");
+							printf("SSLv3  ");
 						}
 					}
 					else
@@ -677,18 +647,12 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 							fprintf(options->xmlOutput, "TLSv1\" bits=\"");
 						if (options->quiet == false)
 						{
-							if (options->pout == true)
-								printf("TLSv1 || ");
-							else
-								printf("TLSv1  ");
+							printf("TLSv1  ");
 						}
 					}
 					if (options->quiet == false)
 					{
-						if (options->pout == true)
-							printf("%d || ", sslCipherPointer->bits);
-						else
-							printf("%3d bits  ", sslCipherPointer->bits);
+						printf("%3d bits  ", sslCipherPointer->bits);
 					}
 
 					if (options->xmlOutput != 0)
@@ -700,10 +664,7 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 
 					if (options->quiet == false)
 					{
-						if (options->pout == true)
-							printf("%s ||\n", sslCipherPointer->name);
-						else
-							printf("%s\n", sslCipherPointer->name);
+						printf("%s\n", sslCipherPointer->name);
 					}
 				}
 
@@ -823,7 +784,7 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 										/* our renegotiation is complete */
 										status = true;
 										if (options->quiet == false)
-											printf("\n\nRenegotiation requests supported\n");
+											printf("\n\nInsecure renegotiation supported\n");
 									} else {
 										status = false;
 										fprintf(stderr, "\n\nFailed to complete renegotiation\n");
@@ -932,10 +893,7 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"SSLv2\" bits=\"");
 								if (options->quiet == false)
 								{
-									if (options->pout == true)
-										printf("|| SSLv2 || ");
-									else
-										printf("    SSLv2  ");
+									printf("    SSLv2  ");
 								}
 							}
 							else if (sslMethod == SSLv3_client_method())
@@ -944,10 +902,7 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"SSLv3\" bits=\"");
 								if (options->quiet == false)
 								{
-									if (options->pout == true)
-										printf("|| SSLv3 || ");
-									else
-										printf("    SSLv3  ");
+									printf("    SSLv3  ");
 								}
 							}
 							else
@@ -956,18 +911,12 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"TLSv1\" bits=\"");
 								if (options->quiet == false)
 								{
-									if (options->pout == true)
-										printf("|| TLSv1 || ");
-									else
-										printf("    TLSv1  ");
+									printf("    TLSv1  ");
 								}
 							}
 							if (options->quiet == false)
 							{
-								if (options->pout == true)
-									printf("%d bits || ", SSL_get_cipher_bits(ssl, &tempInt2));
-								else
-									printf("%3d bits  ", SSL_get_cipher_bits(ssl, &tempInt2));
+								printf("%3d bits  ", SSL_get_cipher_bits(ssl, &tempInt2));
 							}
 							if (options->xmlOutput != 0)
 							{
@@ -980,10 +929,7 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 							}
 							if (options->quiet == false)
 							{
-								if (options->pout == true)
-									printf("%s ||\n", SSL_get_cipher_name(ssl));
-								else
-									printf("%s\n", SSL_get_cipher_name(ssl));
+								printf("%s\n", SSL_get_cipher_name(ssl));
 							}
 
 							// Disconnect SSL over socket
@@ -1460,20 +1406,14 @@ int testHost(struct sslCheckOptions *options)
 	{
 		printf("\n%sTesting SSL server %s on port %d%s\n\n", COL_GREEN, options->host, options->port, RESET);
 		printf("  %sSupported Server Cipher(s):%s\n", COL_BLUE, RESET);
-		if ((options->http == true) && (options->pout == true))
-			printf("|| Status || HTTP Code || Version || Bits || Cipher ||\n");
-		else if (options->pout == true)
-			printf("|| Status || Version || Bits || Cipher ||\n");
 	}
 	sslCipherPointer = options->ciphers;
 	while ((sslCipherPointer != 0) && (status == true))
 	{
-
 		// Setup Context Object...
 		options->ctx = SSL_CTX_new(sslCipherPointer->sslMethod);
 		if (options->ctx != NULL)
 		{
-
 			// SSL implementation bugs/workaround
 			if (options->sslbugs)
 				SSL_CTX_set_options(options->ctx, SSL_OP_ALL | 0);
@@ -1508,8 +1448,6 @@ int testHost(struct sslCheckOptions *options)
 		if (options->quiet == false)
 		{
 			printf("\n  %sPrefered Server Cipher(s):%s\n", COL_BLUE, RESET);
-			if (options->pout == true)
-				printf("|| Version || Bits || Cipher ||\n");
 		}
 		switch (options->sslVersion)
 		{
@@ -1573,7 +1511,6 @@ int main(int argc, char *argv[])
 	options.noFailed = false;
 	options.starttls = false;
 	options.sslVersion = ssl_all;
-	options.pout = false;
 	options.quiet = false;
 	SSL_library_init();
 
@@ -1602,10 +1539,6 @@ int main(int argc, char *argv[])
 		// XML Output
 		else if (strncmp("--xml=", argv[argLoop], 6) == 0)
 			xmlArg = argLoop;
-
-		// P Output
-		else if (strcmp("-p", argv[argLoop]) == 0)
-			options.pout = true;
 
 		// Quiet output
 		else if (strcmp("--quiet", argv[argLoop]) == 0)
