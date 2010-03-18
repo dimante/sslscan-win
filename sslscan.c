@@ -515,7 +515,7 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 
 	// Create request buffer...
 	memset(requestBuffer, 0, BUFFERSIZE);
-	snprintf(requestBuffer, BUFFERSIZE-1, "GET / HTTP/1.0\r\nUser-Agent: SSLScan\r\nHost: %s\r\n\r\n", options->host);
+	snprintf(requestBuffer, BUFFERSIZE-1, "GET / HTTP/1.0\r\nUser-Agent: SSLScan %s\r\nHost: %s\r\n\r\n", SSLSCAN_VERSION, options->host);
 	// Connect to host
 	socketDescriptor = tcpConnect(options);
 	if (socketDescriptor != 0)
@@ -1450,7 +1450,7 @@ int testHost(struct sslCheckOptions *options)
 	{
 		time( &rawtime );
 		timeinfo = gmtime( &rawtime );
-		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S +0000", timeinfo); //TODO: Output timezone as offset to GMT
+		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S +0000", timeinfo);
 
 		fprintf(options->xmlOutput, " <ssltest host=\"%s\" port=\"%d\" time=\"%s\">\n", options->host, options->port, datetime);
 	}
