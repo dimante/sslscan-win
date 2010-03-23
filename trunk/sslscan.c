@@ -1262,7 +1262,7 @@ int getCertificate(struct sslCheckOptions *options)
 											{
 												fprintf(options->xmlOutput, "    <extension name=\"");
 												i2a_ASN1_OBJECT(fileBIO, asn1Object);
-												BIO_printf(fileBIO, "\"%s>", tempInt2 ? " level=\"critical\"" : "");
+												BIO_printf(fileBIO, "\"%s><![CDATA[", tempInt2 ? " level=\"critical\"" : "");
 											}
 
 											// Print Extension value...
@@ -1280,7 +1280,7 @@ int getCertificate(struct sslCheckOptions *options)
 											{
 												if (!X509V3_EXT_print(fileBIO, extension, X509_FLAG_COMPAT, 0))
 													M_ASN1_OCTET_STRING_print(fileBIO, extension->value);
-												fprintf(options->xmlOutput, "</extension>\n");
+												fprintf(options->xmlOutput, "]]></extension>\n");
 											}	
 										}
 										if (options->xmlOutput != 0)
