@@ -108,6 +108,18 @@ const char *program_banner = "                   _\n"
 const char *program_version = "sslscan version " SSLSCAN_VERSION "\n" OPENSSL_VERSION_TEXT "\nhttp://www.titania.co.uk\nCopyright (C) Ian Ventura-Whiting 2009\n";
 const char *xml_version = SSLSCAN_VERSION;
 
+struct cipherOutput
+{
+	char status[BUFFERSIZE];
+	char sslVersion[BUFFERSIZE];
+	char cipherName[BUFFERSIZE];
+	int  cipherBits;
+	char cipherKx[BUFFERSIZE];
+	char cipherAu[BUFFERSIZE];
+	char cipherEnc[BUFFERSIZE];
+	char cipherMac[BUFFERSIZE];
+	char L4String[BUFFERSIZE];
+};
 
 struct sslCipher
 {
@@ -129,6 +141,7 @@ struct sslCheckOptions
 	int starttls;
 	int sslVersion;
 	int targets;
+	int pout;
 	int sslbugs;
 	int http;
 	int quiet;
@@ -148,12 +161,93 @@ struct sslCheckOptions
 	char *privateKeyPassword;
 };
 
-int parseDescription( char *description, char *dest )
+int outputCipher( struct sslCheckOptions *options, struct cipherOutput *outputData )
 {
-	char kx[10], au[10], enc[10], mac[10];
+	if ((strcmp(outputData->status, "accepted") == 0) || // Status is accepted
+		(options->noFailed == false) // Include failed ciphers
+		)
+	{
+		if (options->quiet == false)
+		{
+			printf("    %-8s  %s  %3d bits  %s\n",
+				outputData->status,
+				outputData->sslVersion,
+				outputData->cipherBits,
+				outputData->cipherName
+				);
+		}
 
-	sscanf(description, "%*s %*s Kx=%s Au=%s Enc=%s Mac=%s", kx, au, enc, mac);
-	snprintf(dest, BUFFERSIZE-1, "kx=\"%s\" au=\"%s\" enc=\"%s\" mac=\"%s\"", kx, au, enc, mac);
+		if (options->pout)
+		{
+			printf("|| %s || %s || %3d || %s ||\n",
+				outputData->status,
+				outputData->sslVersion,
+				outputData->cipherBits,
+				outputData->cipherName
+				);
+		}
+
+		if (options->xmlOutput != 0)
+		{
+			fprintf(options->xmlOutput, "  <cipher status=\"%s\" sslversion=\"%s\" bits=\"%d\" cipher=\"%s\" kx=\"%s\" au=\"%s\" enc=\"%s\" mac=\"%s\" />\n",
+				outputData->status,
+				outputData->sslVersion,
+				outputData->cipherBits, 
+				outputData->cipherName,
+				outputData->cipherKx,
+				outputData->cipherAu,
+				outputData->cipherEnc,
+				outputData->cipherMac);
+			fflush(options->xmlOutput);
+		}
+	}
+	return true;
+}
+
+int outputPreferedCipher( struct sslCheckOptions *options, struct cipherOutput *outputData )
+{
+	if (options->quiet == false)
+	{
+		printf("    %s  %3d bits  %s\n",
+			outputData->sslVersion,
+			outputData->cipherBits,
+			outputData->cipherName
+			);
+	}
+
+	if (options->pout)
+	{
+		printf("|| %s || %3d || %s ||\n",
+			outputData->sslVersion,
+			outputData->cipherBits,
+			outputData->cipherName
+			);
+	}
+
+	if (options->xmlOutput != 0)
+	{
+		fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"%s\" bits=\"%d\" cipher=\"%s\" kx=\"%s\" au=\"%s\" enc=\"%s\" mac=\"%s\" />\n",
+			outputData->sslVersion,
+			outputData->cipherBits, 
+			outputData->cipherName,
+			outputData->cipherKx,
+			outputData->cipherAu,
+			outputData->cipherEnc,
+			outputData->cipherMac);
+		fflush(options->xmlOutput);
+	}
+
+	return true;
+}
+
+
+int parseDescription( char *description, struct cipherOutput *dest )
+{
+	sscanf(description, "%*s %*s Kx=%s Au=%s Enc=%s Mac=%s",
+		dest->cipherKx,
+		dest->cipherAu,
+		dest->cipherEnc,
+		dest->cipherMac);
 	return true;
 }
 
@@ -511,10 +605,12 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 	char requestBuffer[BUFFERSIZE];
 	char buffer[50];
 	int resultSize = 0;
+	struct cipherOutput *myCipherOutput = NULL;
+	myCipherOutput = malloc(sizeof(struct cipherOutput));
 
 	// Create request buffer...
 	memset(requestBuffer, 0, BUFFERSIZE);
-	snprintf(requestBuffer, BUFFERSIZE-1, "GET / HTTP/1.0\r\nUser-Agent: SSLScan %s\r\nHost: %s\r\n\r\n", SSLSCAN_VERSION, options->host);
+	snprintf(requestBuffer, BUFFERSIZE-1, "GET / HTTP/1.0\r\nUser-Agent: SSLScan\r\nHost: %s\r\n\r\n", options->host);
 	// Connect to host
 	socketDescriptor = tcpConnect(options);
 	if (socketDescriptor != 0)
@@ -538,19 +634,11 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 				// Show Cipher Status
 				if (!((options->noFailed == true) && (cipherStatus != 1)))
 				{
-					if (options->xmlOutput != 0)
-						fprintf(options->xmlOutput, "  <cipher status=\"");
 					if (cipherStatus == 1)
 					{
-						if (options->xmlOutput != 0)
-							fprintf(options->xmlOutput, "accepted\"");
-						if( options->quiet == false )
-						{
-								printf("    Accepted  ");
-						}
+						sprintf(myCipherOutput->status, "accepted"); 
 						if (options->http == true)
 						{
-
 							// Stdout BIO...
 							stdoutBIO = BIO_new(BIO_s_file());
 							BIO_set_fp(stdoutBIO, stdout, BIO_NOCLOSE);
@@ -567,105 +655,44 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 								buffer[loop] = 0;
 
 								// Output HTTP code...
-								if (options->quiet == false) {
-									printf("%s", buffer + 9);
-									loop = strlen(buffer + 9);
-									while (loop < 17)
-									{
-										loop++;
-										printf(" ");
-									}
-								}
-								if (options->xmlOutput != 0)
-									fprintf(options->xmlOutput, " http=\"%s\"", buffer + 9);
-							}
-							else
-							{
-								if( options->quiet == false)
-								{
-									// Output HTTP code...
-									printf("                 ");
-								}
+								sprintf(myCipherOutput->L4String, "%s", buffer + 9);
 							}
 						}
 					}
 					else if (cipherStatus == 0)
 					{
-						if (options->xmlOutput != 0)
-							fprintf(options->xmlOutput, "rejected\"");
-						if (options->quiet == false)
+						sprintf(myCipherOutput->status, "rejected");
+						if (options->http == true)
 						{
-							if (options->http == true)
-							{
-									printf("    Rejected  N/A              ");
-							}
-							else
-							{
-									printf("    Rejected  ");
-							}
+							sprintf(myCipherOutput->L4String, "Rejected");
 						}
 					}
 					else
 					{
-						if (options->xmlOutput != 0)
-							fprintf(options->xmlOutput, "failed\"");
-						if (options->quiet == false)
+						sprintf(myCipherOutput->status, "failed");
+						if (options->http == true)
 						{
-							if (options->http == true)
-							{
-									printf("    Failed    N/A              ");
-							}
-							else
-							{
-								printf("    Failed    ");
-							}
+							sprintf(myCipherOutput->L4String, "Failed");
 						}
 					}
-					if (options->xmlOutput != 0)
-						fprintf(options->xmlOutput, " sslversion=\"");
+
 					if (sslCipherPointer->sslMethod == SSLv2_client_method())
 					{
-						if (options->xmlOutput != 0)
-							fprintf(options->xmlOutput, "SSLv2\" bits=\"");
-						if (options->quiet == false)
-						{
-							printf("SSLv2  ");
-						}
+						sprintf(myCipherOutput->sslVersion, "SSLv2");
 					}
 					else if (sslCipherPointer->sslMethod == SSLv3_client_method())
 					{
-						if (options->xmlOutput != 0)
-							fprintf(options->xmlOutput, "SSLv3\" bits=\"");
-						if (options->quiet == false)
-						{
-							printf("SSLv3  ");
-						}
+						sprintf(myCipherOutput->sslVersion, "SSLv3");
 					}
 					else
 					{
-						if (options->xmlOutput != 0)
-							fprintf(options->xmlOutput, "TLSv1\" bits=\"");
-						if (options->quiet == false)
-						{
-							printf("TLSv1  ");
-						}
-					}
-					if (options->quiet == false)
-					{
-						printf("%3d bits  ", sslCipherPointer->bits);
+						// TODO: Is it really safe to assume this?
+						sprintf(myCipherOutput->sslVersion, "TLSv1");
 					}
 
-					if (options->xmlOutput != 0)
-					{
-						char dest[BUFFERSIZE];
-						parseDescription(sslCipherPointer->description, dest);
-						fprintf(options->xmlOutput, "%d\" cipher=\"%s\" %s />\n", sslCipherPointer->bits, sslCipherPointer->name, dest);
-					}
-
-					if (options->quiet == false)
-					{
-						printf("%s\n", sslCipherPointer->name);
-					}
+					myCipherOutput->cipherBits = sslCipherPointer->bits;
+					parseDescription(sslCipherPointer->description, myCipherOutput);
+					sprintf(myCipherOutput->cipherName, "%s", sslCipherPointer->name);
 				}
 
 				// Disconnect SSL over socket
@@ -694,6 +721,11 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 	// Could not connect
 	else
 		status = false;
+
+	outputCipher( options, myCipherOutput );
+
+	if (myCipherOutput != NULL)
+		free(myCipherOutput);
 
 	return status;
 }
@@ -784,7 +816,7 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 										/* our renegotiation is complete */
 										status = true;
 										if (options->quiet == false)
-											printf("\n\nInsecure renegotiation supported\n");
+											printf("\n\nRenegotiation requests supported\n");
 									} else {
 										status = false;
 										fprintf(stderr, "\n\nFailed to complete renegotiation\n");
@@ -854,6 +886,9 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 	SSL *ssl = NULL;
 	BIO *cipherConnectionBio;
 	int tempInt2;
+	struct cipherOutput *myCipherOutput = NULL;
+	myCipherOutput = malloc(sizeof(struct cipherOutput));
+
 
 	// Connect to host
 	socketDescriptor = tcpConnect(options);
@@ -889,48 +924,21 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 						{
 							if (sslMethod == SSLv2_client_method())
 							{
-								if (options->xmlOutput != 0)
-									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"SSLv2\" bits=\"");
-								if (options->quiet == false)
-								{
-									printf("    SSLv2  ");
-								}
+								sprintf(myCipherOutput->sslVersion, "SSLv2");
 							}
 							else if (sslMethod == SSLv3_client_method())
 							{
-								if (options->xmlOutput != 0)
-									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"SSLv3\" bits=\"");
-								if (options->quiet == false)
-								{
-									printf("    SSLv3  ");
-								}
+								sprintf(myCipherOutput->sslVersion, "SSLv3");
 							}
 							else
 							{
-								if (options->xmlOutput != 0)
-									fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"TLSv1\" bits=\"");
-								if (options->quiet == false)
-								{
-									printf("    TLSv1  ");
-								}
+								// TODO: Is it really safe to assume this?
+								sprintf(myCipherOutput->sslVersion, "TLSv1");
 							}
-							if (options->quiet == false)
-							{
-								printf("%3d bits  ", SSL_get_cipher_bits(ssl, &tempInt2));
-							}
-							if (options->xmlOutput != 0)
-							{
-								char raw_description[BUFFERSIZE];
-								char parsed_description[BUFFERSIZE];
-								strncpy(raw_description, options->ciphers->description, BUFFERSIZE-1);
 
-								parseDescription(raw_description, parsed_description);
-								fprintf(options->xmlOutput, "%d\" cipher=\"%s\" %s />\n", SSL_get_cipher_bits(ssl, &tempInt2), SSL_get_cipher_name(ssl), parsed_description);
-							}
-							if (options->quiet == false)
-							{
-								printf("%s\n", SSL_get_cipher_name(ssl));
-							}
+							myCipherOutput->cipherBits = SSL_get_cipher_bits(ssl, &tempInt2);
+							parseDescription(options->ciphers->description, myCipherOutput);
+							sprintf(myCipherOutput->cipherName, "%s", SSL_get_cipher_name(ssl));
 
 							// Disconnect SSL over socket
 							SSL_shutdown(ssl);
@@ -970,6 +978,11 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 	// Could not connect
 	else
 		status = false;
+
+	outputPreferedCipher( options, myCipherOutput );
+
+	if ( myCipherOutput != NULL )
+		free( myCipherOutput );
 
 	return status;
 }
@@ -1396,7 +1409,7 @@ int testHost(struct sslCheckOptions *options)
 	{
 		time( &rawtime );
 		timeinfo = gmtime( &rawtime );
-		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S +0000", timeinfo);
+		strftime( datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S +0000", timeinfo); //TODO: Output timezone as offset to GMT
 
 		fprintf(options->xmlOutput, " <ssltest host=\"%s\" port=\"%d\" time=\"%s\">\n", options->host, options->port, datetime);
 	}
@@ -1406,14 +1419,20 @@ int testHost(struct sslCheckOptions *options)
 	{
 		printf("\n%sTesting SSL server %s on port %d%s\n\n", COL_GREEN, options->host, options->port, RESET);
 		printf("  %sSupported Server Cipher(s):%s\n", COL_BLUE, RESET);
+		if ((options->http == true) && (options->pout == true))
+			printf("|| Status || HTTP Code || Version || Bits || Cipher ||\n");
+		else if (options->pout == true)
+			printf("|| Status || Version || Bits || Cipher ||\n");
 	}
 	sslCipherPointer = options->ciphers;
 	while ((sslCipherPointer != 0) && (status == true))
 	{
+
 		// Setup Context Object...
 		options->ctx = SSL_CTX_new(sslCipherPointer->sslMethod);
 		if (options->ctx != NULL)
 		{
+
 			// SSL implementation bugs/workaround
 			if (options->sslbugs)
 				SSL_CTX_set_options(options->ctx, SSL_OP_ALL | 0);
@@ -1448,6 +1467,8 @@ int testHost(struct sslCheckOptions *options)
 		if (options->quiet == false)
 		{
 			printf("\n  %sPrefered Server Cipher(s):%s\n", COL_BLUE, RESET);
+			if (options->pout == true)
+				printf("|| Version || Bits || Cipher ||\n");
 		}
 		switch (options->sslVersion)
 		{
@@ -1511,6 +1532,7 @@ int main(int argc, char *argv[])
 	options.noFailed = false;
 	options.starttls = false;
 	options.sslVersion = ssl_all;
+	options.pout = false;
 	options.quiet = false;
 	SSL_library_init();
 
@@ -1539,6 +1561,10 @@ int main(int argc, char *argv[])
 		// XML Output
 		else if (strncmp("--xml=", argv[argLoop], 6) == 0)
 			xmlArg = argLoop;
+
+		// P Output
+		else if (strcmp("-p", argv[argLoop]) == 0)
+			options.pout = true;
 
 		// Quiet output
 		else if (strcmp("--quiet", argv[argLoop]) == 0)
@@ -1611,7 +1637,13 @@ int main(int argc, char *argv[])
 	// Open XML file output...
 	if ((xmlArg > 0) && (mode != mode_help))
 	{
-		options.xmlOutput = fopen(argv[xmlArg] + 6, "w");
+		if( strcmp(argv[xmlArg] + 6, "stdout") == 0)
+		{
+			options.xmlOutput = stdout;
+		}
+		else {
+			options.xmlOutput = fopen(argv[xmlArg] + 6, "w");
+		}
 		if (options.xmlOutput == NULL)
 		{
 			fprintf(stderr, "%sERROR: Could not open XML output file %s.%s\n", COL_RED, argv[xmlArg] + 6, RESET);
