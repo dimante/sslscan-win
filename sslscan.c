@@ -108,6 +108,31 @@ const char *program_banner = "                   _\n"
 const char *program_version = "sslscan version " SSLSCAN_VERSION "\n" OPENSSL_VERSION_TEXT "\nhttp://www.titania.co.uk\nCopyright (C) Ian Ventura-Whiting 2009\n";
 const char *xml_version = SSLSCAN_VERSION;
 
+struct certificateOutput
+{
+	int version;
+	long serial;
+	char signatureAlgorithm[BUFFERSIZE];
+	char issuer[BUFFERSIZE];
+	char notValidBefore[BUFFERSIZE];
+	char notValidAfter[BUFFERSIZE];
+	char subject[BUFFERSIZE];
+	char pkAlgorithm[BUFFERSIZE];
+	char pk[BUFFERSIZE];
+	char pkType[BUFFERSIZE];
+	int pkError;
+	int pkBits;
+	struct certificateExtensionOutput *firstCertExt;
+};
+
+struct certificateExtensionOutput
+{
+	char name[BUFFERSIZE];
+	int  level;
+	char data[BUFFERSIZE];
+	struct certificateExtensionOutput *next;
+};
+
 struct cipherOutput
 {
 	char status[BUFFERSIZE];
@@ -161,6 +186,79 @@ struct sslCheckOptions
 	char *privateKeyPassword;
 };
 
+int outputCertExtension( struct sslCheckOptions *options, struct certificateExtensionOutput *outputData )
+{
+	if (options->quiet == false)
+	{
+		printf("%s: %s\n", outputData->name, outputData->level ? "critical":"");
+		printf("%s\n", outputData->data);
+	}
+
+	if (options->pout)
+	{
+	}
+
+	return true;
+}
+
+int outputCertExtensionXML( struct sslCheckOptions *options, struct certificateExtensionOutput *outputData )
+{
+	if (options->xmlOutput != 0)
+	{
+		fprintf(options->xmlOutput, "    <extension name=\"%s\" %s><![CDATA[%s]]></extension>\n",
+			outputData->name,
+			outputData->level ? "level=\"critical\"":"",
+			outputData->data);
+		fflush(options->xmlOutput);
+	}
+	return true;
+}
+
+int outputCertificate( struct sslCheckOptions *options, struct certificateOutput *outputData )
+{
+	if ( options->quiet == false )
+	{
+		printf("\n  %sSSL Certificate:%s\n", COL_BLUE, RESET);
+		printf("    Version: %d\n", outputData->version);
+		printf("    Serial Number: %ul\n", outputData->serial);
+		printf("    Signature Algorithm: %s\n", outputData->signatureAlgorithm);
+		printf("    Issuer: %s\n", outputData->issuer);
+		printf("    Not valid before: %s\n", outputData->notValidBefore);
+		printf("    Not valid after: %s\n", outputData->notValidAfter);
+		printf("    Subject: %s\n", outputData->subject);
+		printf("    Public Key Algorithm: %s\n", outputData->pkAlgorithm);
+		printf("    %s Public Key: (%d bit):\n%s\n", outputData->pkAlgorithm, outputData->pkBits, outputData->pk);
+		//for extension in extensions, do...
+		outputCertExtension(options, outputData->firstCertExt);
+	}
+
+	if ( options->xmlOutput != 0 )
+	{
+		fprintf(options->xmlOutput, "  <certificate>\n");
+		fprintf(options->xmlOutput, "   <version>%d</version>\n", outputData->version);
+		fprintf(options->xmlOutput, "   <serial>%l</serial>\n", outputData->serial);
+		fprintf(options->xmlOutput, "   <signature-algorithm>%s</signature-algorithm>\n", outputData->signatureAlgorithm);
+		fprintf(options->xmlOutput, "   <issuer>%s</issuer>\n", outputData->issuer);
+		fprintf(options->xmlOutput, "   <not-valid-before>%s</not-valid-before>\n", outputData->notValidBefore);
+		fprintf(options->xmlOutput, "   <not-valid-after>%s</not-valid-after>\n", outputData->notValidAfter);
+		fprintf(options->xmlOutput, "   <subject>%s</subject>\n", outputData->subject);
+		fprintf(options->xmlOutput, "   <pk-algorithm>%s</pk-algorithm>\n", outputData->pkAlgorithm);
+		fprintf(options->xmlOutput, "   <pk error=\"%s\" type=\"%s\" bits=\"%d\">\n%s\n   </pk>",
+			outputData->pkError ? "true":"false",
+			outputData->pkType,
+			outputData->pkBits,
+			outputData->pk);
+		fprintf(options->xmlOutput, "   <X509v3-Extensions>\n");
+		//for extension in extensions, do...
+		outputCertExtensionXML(options, outputData->firstCertExt);
+		fprintf(options->xmlOutput, "   </X509v3-Extensions>\n");
+		fprintf(options->xmlOutput, "  </certificate>\n");
+		fflush(options->xmlOutput);
+	}
+
+	return true;
+}
+
 int outputCipher( struct sslCheckOptions *options, struct cipherOutput *outputData )
 {
 	if ((strcmp(outputData->status, "accepted") == 0) || // Status is accepted
@@ -206,37 +304,39 @@ int outputCipher( struct sslCheckOptions *options, struct cipherOutput *outputDa
 
 int outputPreferedCipher( struct sslCheckOptions *options, struct cipherOutput *outputData )
 {
-	if (options->quiet == false)
+	if (strcmp(outputData->status, "accepted") == 0)
 	{
-		printf("    %s  %3d bits  %s\n",
-			outputData->sslVersion,
-			outputData->cipherBits,
-			outputData->cipherName
-			);
-	}
+		if (options->quiet == false)
+		{
+			printf("    %s  %3d bits  %s\n",
+				outputData->sslVersion,
+				outputData->cipherBits,
+				outputData->cipherName
+				);
+		}
 
-	if (options->pout)
-	{
-		printf("|| %s || %3d || %s ||\n",
-			outputData->sslVersion,
-			outputData->cipherBits,
-			outputData->cipherName
-			);
-	}
+		if (options->pout)
+		{
+			printf("|| %s || %3d || %s ||\n",
+				outputData->sslVersion,
+				outputData->cipherBits,
+				outputData->cipherName
+				);
+		}
 
-	if (options->xmlOutput != 0)
-	{
-		fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"%s\" bits=\"%d\" cipher=\"%s\" kx=\"%s\" au=\"%s\" enc=\"%s\" mac=\"%s\" />\n",
-			outputData->sslVersion,
-			outputData->cipherBits, 
-			outputData->cipherName,
-			outputData->cipherKx,
-			outputData->cipherAu,
-			outputData->cipherEnc,
-			outputData->cipherMac);
-		fflush(options->xmlOutput);
+		if (options->xmlOutput != 0)
+		{
+			fprintf(options->xmlOutput, "  <defaultcipher sslversion=\"%s\" bits=\"%d\" cipher=\"%s\" kx=\"%s\" au=\"%s\" enc=\"%s\" mac=\"%s\" />\n",
+				outputData->sslVersion,
+				outputData->cipherBits, 
+				outputData->cipherName,
+				outputData->cipherKx,
+				outputData->cipherAu,
+				outputData->cipherEnc,
+				outputData->cipherMac);
+			fflush(options->xmlOutput);
+		}
 	}
-
 	return true;
 }
 
@@ -684,10 +784,13 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 					{
 						sprintf(myCipherOutput->sslVersion, "SSLv3");
 					}
+					else if (sslCipherPointer->sslMethod == TLSv1_client_method())
+					{
+						sprintf(myCipherOutput->sslVersion, "TLSv1");
+					}
 					else
 					{
-						// TODO: Is it really safe to assume this?
-						sprintf(myCipherOutput->sslVersion, "TLSv1");
+						sprintf(myCipherOutput->sslVersion, "Unknown");
 					}
 
 					myCipherOutput->cipherBits = sslCipherPointer->bits;
@@ -922,6 +1025,7 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 						cipherStatus = SSL_connect(ssl);
 						if (cipherStatus == 1)
 						{
+							sprintf(myCipherOutput->status, "accepted");
 							if (sslMethod == SSLv2_client_method())
 							{
 								sprintf(myCipherOutput->sslVersion, "SSLv2");
@@ -930,10 +1034,13 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 							{
 								sprintf(myCipherOutput->sslVersion, "SSLv3");
 							}
+							else if (sslMethod == TLSv1_client_method())
+							{
+								sprintf(myCipherOutput->sslVersion, "TLSv1");
+							}
 							else
 							{
-								// TODO: Is it really safe to assume this?
-								sprintf(myCipherOutput->sslVersion, "TLSv1");
+								sprintf(myCipherOutput->sslVersion, "Unknown");
 							}
 
 							myCipherOutput->cipherBits = SSL_get_cipher_bits(ssl, &tempInt2);
@@ -943,6 +1050,10 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 							// Disconnect SSL over socket
 							SSL_shutdown(ssl);
 						}
+						else
+						{
+							sprintf(myCipherOutput->status, "error");
+						}
 
 						// Free SSL object
 						SSL_free(ssl);
@@ -950,6 +1061,7 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 					else
 					{
 						status = false;
+						sprintf(myCipherOutput->status, "error");
 						fprintf(stderr, "%s    ERROR: Could create SSL object.%s\n", COL_RED, RESET);
 					}
 				}
@@ -1009,6 +1121,8 @@ int getCertificate(struct sslCheckOptions *options)
 	int tempInt = 0;
 	int tempInt2 = 0;
 	long verifyError = 0;
+	struct certificateOutput *myCertOutput;
+	myCertOutput = malloc(sizeof( struct certificateOutput));
 
 	// Connect to host
 	socketDescriptor = tcpConnect(options);
@@ -1069,6 +1183,8 @@ int getCertificate(struct sslCheckOptions *options)
 								// Cert Version
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_VERSION))
 								{
+									myCertOutput->version = X509_get_version(x509Cert);
+
 									tempLong = X509_get_version(x509Cert);
 									if (options->quiet == false)
 										printf("    Version: %lu\n", tempLong);
@@ -1079,6 +1195,8 @@ int getCertificate(struct sslCheckOptions *options)
 								// Cert Serial No.
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_SERIAL))
 								{
+									myCertOutput->serial = ASN1_INTEGER_get(X509_get_serialNumber(x509Cert));
+
 									tempLong = ASN1_INTEGER_get(X509_get_serialNumber(x509Cert));
 									if (tempLong < 1)
 									{
@@ -1099,6 +1217,8 @@ int getCertificate(struct sslCheckOptions *options)
 								// Signature Algo...
 								if (!(X509_FLAG_COMPAT & X509_FLAG_NO_SIGNAME))
 								{
+									//myCertOutput->signatureAlgorithm = 
+
 									if (options->quiet == false)
 									{
 										printf("    Signature Algorithm: ");
