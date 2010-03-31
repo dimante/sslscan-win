@@ -40,7 +40,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories=""
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_STRING_H"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -62,8 +62,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib wininet.lib C:\OpenSSL\openssl-0.9.8m\lib\libeay32.lib C:\OpenSSL\openssl-0.9.8m\lib\ssleay32.lib"
-				Version="1.8.2-win"
+				AdditionalDependencies="wsock32.lib wininet.lib C:\OpenSSL\openssl-0.9.8n\lib\libeay32.lib C:\OpenSSL\openssl-0.9.8n\lib\ssleay32.lib"
+				Version="1.9.0-win"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories=""
 				GenerateDebugInformation="true"
@@ -137,7 +137,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib wininet.lib libeay32.lib ssleay32.lib"
+				AdditionalDependencies="wsock32.lib wininet.lib C:\OpenSSL\openssl-0.9.8n\lib\libeay32.lib C:\OpenSSL\openssl-0.9.8n\lib\ssleay32.lib"
 				Version="1.8.2-win"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories=""
