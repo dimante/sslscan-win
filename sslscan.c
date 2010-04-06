@@ -227,6 +227,23 @@ char *strndup(char *str, int n)
 }
 #endif
 
+#if defined (WIN32)
+void setConnectionTimeout( int hSocket, DWORD timeout )
+{
+	setsockopt(hSocket,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeout,sizeof timeout);
+	setsockopt(hSocket,SOL_SOCKET,SO_SNDTIMEO,(char*)&timeout,sizeof timeout);
+}
+#else
+void setConnectionTimeout( SOCKET hSocket, int timeout )
+{
+	struct timeval timeval;
+	timeval.suseconds_t = timeout;
+
+	setsockopt(hSocket,SOL_SOCKET,SO_RCVTIMEO,(void*)&dwTimeout,sizeof dwTimeout);
+	setsockopt(hSocket,SOL_SOCKET,SO_SNDTIMEO,(void*)&dwTimeout,sizeof dwTimeout);
+}
+#endif
+
 int outputRenegotiaition( struct sslCheckOptions *options, struct renegotiationOutput *outputData)
 {
 	if (options->quiet == false)
@@ -302,7 +319,7 @@ int outputCertificate( struct sslCheckOptions *options, struct certificateOutput
 		if ( options->quiet == false )
 		{
 			printf("\n  %sSSL Certificate:%s\n", COL_BLUE, RESET);
-			printf("    Version: %d\n", outputData->version);
+			printf("    Version: %l\n", outputData->version);
 			printf("    Serial Number: %u\n", outputData->serial);
 			printf("    Signature Algorithm: %s\n", outputData->signatureAlgorithm);
 			printf("    Issuer: %s\n", outputData->issuer);
@@ -517,7 +534,7 @@ int parseDescription( char *description, struct cipherOutput *dest )
 	return true;
 }
 
-void set_blocking(SSL * ssl)
+void setBlocking(SSL * ssl)
 {
 #if defined (WIN32)
 	int fd, res;
@@ -881,6 +898,7 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 	socketDescriptor = tcpConnect(options);
 	if (socketDescriptor != 0)
 	{
+		setConnectionTimeout(socketDescriptor, 5000);
 		if (SSL_CTX_set_cipher_list(options->ctx, sslCipherPointer->name) != 0)
 		{
 
@@ -1069,7 +1087,7 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 								// support failed the server doesn't support insecure renegotiations 
 
 								// assume ssl is connected and error free up to here
-								set_blocking(ssl); // this is unnecessary if it is already blocking 
+								//setBlocking(ssl); // this is unnecessary if it is already blocking 
 								SSL_renegotiate(ssl); // Ask to renegotiate the connection
 								SSL_do_handshake(ssl); // Send renegotiation request to server
 
