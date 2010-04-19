@@ -552,23 +552,23 @@ void setBlocking(SSL * ssl)
 		}
 	}
 #else
-  int fd, flags;      
+	int fd, flags;      
 
-  /* SSL_get_rfd returns -1 on error */
-  if( (fd = SSL_get_rfd(ssl)) )       
-  { 
-	flags = fcntl(fd, F_GETFL);
-    flags &= ~O_NONBLOCK;
-    fcntl(fd, F_SETFL, flags);
-  } 
+	/* SSL_get_rfd returns -1 on error */
+	if( (fd = SSL_get_rfd(ssl)) )       
+	{ 
+		flags = fcntl(fd, F_GETFL);
+		flags &= ~O_NONBLOCK;
+		fcntl(fd, F_SETFL, flags);
+	} 
 
-  /* SSL_get_wfd returns -1 on error */  
-  if( (fd = SSL_get_wfd(ssl)) )      
-  {
-    flags = fcntl(fd, F_GETFL);
-    flags &= ~O_NONBLOCK;
-    fcntl(fd, F_SETFL, flags);
-  }
+	/* SSL_get_wfd returns -1 on error */  
+	if( (fd = SSL_get_wfd(ssl)) )      
+	{
+		flags = fcntl(fd, F_GETFL);
+		flags &= ~O_NONBLOCK;
+		fcntl(fd, F_SETFL, flags);
+	}
 #endif
 }
 
@@ -1629,7 +1629,7 @@ int testHost(struct sslCheckOptions *options)
 		timeinfo = gmtime( &rawtime );
 		strftime( datetime, MAXSTRLEN(datetime), "%Y-%m-%d %H:%M:%S +0000", timeinfo);
 
-		fprintf(options->xmlOutput, " <ssltest host=\"%s\" port=\"%d\" time=\"%s\">\n", options->host, options->port, datetime);
+		fprintf(options->xmlOutput, " <ssltest host=\"%s\" addr=\"%s\" port=\"%d\" time=\"%s\">\n", options->host, inet_ntoa(options->serverAddress.sin_addr), options->port, datetime);
 	}
 
 	// Test supported ciphers...
