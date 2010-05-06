@@ -32,12 +32,12 @@
 
 // Includes...
 #include <string.h>
-
 #if defined(WIN32)
 #include <stdio.h>
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
+#define snprintf(...) _snprintf(__VA_ARGS__)
 DWORD dwError;
 #else
 #include <netdb.h>
@@ -45,7 +45,6 @@ DWORD dwError;
 #include <sys/socket.h>
 #include <fcntl.h>
 #endif
-
 #include <sys/stat.h>
 #include <time.h>
 
@@ -234,13 +233,14 @@ void setConnectionTimeout( int hSocket, DWORD timeout )
 	setsockopt(hSocket,SOL_SOCKET,SO_SNDTIMEO,(char*)&timeout,sizeof timeout);
 }
 #else
-void setConnectionTimeout( SOCKET hSocket, int timeout )
+void setConnectionTimeout( int hSocket, int timeout )
 {
-	struct timeval timeval;
-	timeval.suseconds_t = timeout;
+	struct timeval tv;
+	tv.tv_sec = timeout/1000;
+	tv.tv_usec = 0;
 
-	setsockopt(hSocket,SOL_SOCKET,SO_RCVTIMEO,(void*)&dwTimeout,sizeof dwTimeout);
-	setsockopt(hSocket,SOL_SOCKET,SO_SNDTIMEO,(void*)&dwTimeout,sizeof dwTimeout);
+	setsockopt(hSocket,SOL_SOCKET,SO_RCVTIMEO,(char*)&tv, sizeof(tv));
+	setsockopt(hSocket,SOL_SOCKET,SO_SNDTIMEO,(char*)&tv, sizeof(tv));
 }
 #endif
 
@@ -552,23 +552,23 @@ void setBlocking(SSL * ssl)
 		}
 	}
 #else
-	int fd, flags;      
+  int fd, flags;      
 
-	/* SSL_get_rfd returns -1 on error */
-	if( (fd = SSL_get_rfd(ssl)) )       
-	{ 
-		flags = fcntl(fd, F_GETFL);
-		flags &= ~O_NONBLOCK;
-		fcntl(fd, F_SETFL, flags);
-	} 
+  /* SSL_get_rfd returns -1 on error */
+  if( (fd = SSL_get_rfd(ssl)) )       
+  { 
+	flags = fcntl(fd, F_GETFL);
+    flags &= ~O_NONBLOCK;
+    fcntl(fd, F_SETFL, flags);
+  } 
 
-	/* SSL_get_wfd returns -1 on error */  
-	if( (fd = SSL_get_wfd(ssl)) )      
-	{
-		flags = fcntl(fd, F_GETFL);
-		flags &= ~O_NONBLOCK;
-		fcntl(fd, F_SETFL, flags);
-	}
+  /* SSL_get_wfd returns -1 on error */  
+  if( (fd = SSL_get_wfd(ssl)) )      
+  {
+    flags = fcntl(fd, F_GETFL);
+    flags &= ~O_NONBLOCK;
+    fcntl(fd, F_SETFL, flags);
+  }
 #endif
 }
 
@@ -614,8 +614,6 @@ int populateCipherList(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 					sslCipherPointer = sslCipherPointer->next;
 				}
 	
-				// Init
-				//memset(sslCipherPointer, 0, sizeof(struct sslCipher));
 	
 				// Add cipher information...
 				sslCipherPointer->sslMethod = sslMethod;
@@ -747,6 +745,8 @@ int tcpConnect(struct sslCheckOptions *options)
 			return 0;
 		}
 	}
+
+	setConnectionTimeout(socketDescriptor, 30000);
 
 	// Return
 	return socketDescriptor;
@@ -892,13 +892,13 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 
 	// Create request buffer...
 	memset(requestBuffer, 0, BUFFERSIZE);
-	snprintf(requestBuffer, BUFFERSIZE-1, "GET / HTTP/1.0\r\nUser-Agent: SSLScan/%s\r\nHost: %s\r\n\r\n", SSLSCAN_VERSION, options->host);
-	//snprintf(requestBuffer, BUFFERSIZE-1, "GET / HTTP/1.0\r\nUser-Agent: Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.2) Gecko/20100115 Firefox/3.6\r\nHost: %s\r\n\r\n", options->host);
+	snprintf(requestBuffer, MAXSTRLEN(requestBuffer), "GET / HTTP/1.0\r\nUser-Agent: SSLScan/%s\r\nHost: %s\r\n\r\n", SSLSCAN_VERSION, options->host);
+	//snprintf(requestBuffer, MAXSTRLEN(requestBuffer), "GET / HTTP/1.0\r\nUser-Agent: Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.2) Gecko/20100115 Firefox/3.6\r\nHost: %s\r\n\r\n", options->host);
 	// Connect to host
 	socketDescriptor = tcpConnect(options);
 	if (socketDescriptor != 0)
 	{
-		setConnectionTimeout(socketDescriptor, 5000);
+
 		if (SSL_CTX_set_cipher_list(options->ctx, sslCipherPointer->name) != 0)
 		{
 
@@ -1629,7 +1629,7 @@ int testHost(struct sslCheckOptions *options)
 		timeinfo = gmtime( &rawtime );
 		strftime( datetime, MAXSTRLEN(datetime), "%Y-%m-%d %H:%M:%S +0000", timeinfo);
 
-		fprintf(options->xmlOutput, " <ssltest host=\"%s\" addr=\"%s\" port=\"%d\" time=\"%s\">\n", options->host, inet_ntoa(options->serverAddress.sin_addr), options->port, datetime);
+		fprintf(options->xmlOutput, " <ssltest host=\"%s\" port=\"%d\" time=\"%s\">\n", options->host, options->port, datetime);
 	}
 
 	// Test supported ciphers...
@@ -1719,7 +1719,8 @@ int testHost(struct sslCheckOptions *options)
 		status = testRenegotiation(options, TLSv1_client_method());
 	}
 
-	fprintf(options->xmlOutput, " </ssltest>\n");
+	if (options->xmlOutput != NULL)
+		fprintf(options->xmlOutput, " </ssltest>\n");
 
 	// Return status...
 	return status;
@@ -1861,7 +1862,7 @@ int main(int argc, char *argv[])
 	// Open XML file output...
 	if ((xmlArg > 0) && (mode != mode_help))
 	{
-		if( strcmp(argv[xmlArg] + 6, "stdout") == 0)
+		if (strncmp("stdout",argv[xmlArg] + 6, 6) == 0)
 		{
 			options.xmlOutput = stdout;
 		}
