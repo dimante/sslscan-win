@@ -87,19 +87,6 @@ DWORD dwError;
 #define CLOSESOCKET(s) close(s)
 #endif
 
-// Colour Console Output...
-#if !defined(WIN32)
-const char *RESET = "[0m";			// DEFAULT
-const char *COL_RED = "[31m";		// RED
-const char *COL_BLUE = "[34m";		// BLUE
-const char *COL_GREEN = "[32m";	// GREEN
-#else
-const char *RESET = "";
-const char *COL_RED = "";
-const char *COL_BLUE = "";
-const char *COL_GREEN = "";
-#endif
-
 // Version numbers and banners
 #define SSLSCAN_VERSION "1.9.0-win"
 const char *program_banner = "                   _\n"
@@ -318,7 +305,7 @@ int outputCertificate( struct sslCheckOptions *options, struct certificateOutput
 	{
 		if ( options->quiet == false )
 		{
-			printf("\n  %sSSL Certificate:%s\n", COL_BLUE, RESET);
+			printf("\n  SSL Certificate:\n");
 			printf("    Version: %l\n", outputData->version);
 			printf("    Serial Number: %u\n", outputData->serial);
 			printf("    Signature Algorithm: %s\n", outputData->signatureAlgorithm);
@@ -547,7 +534,7 @@ void setBlocking(SSL * ssl)
 			// Something went wrong...
 			dwError = WSAGetLastError();
 			if (dwError != 0) {
-					fprintf(stderr, "%sERROR in set_blocking(): %ld.%s\n", COL_RED, dwError, RESET);
+					fprintf(stderr, "ERROR in set_blocking(): %ld.\n", dwError);
 			}
 		}
 	}
@@ -629,7 +616,7 @@ int populateCipherList(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 		else
 		{
 			returnCode = false;
-			fprintf(stderr, "%sERROR: Could not create SSL object.%s\n", COL_RED, RESET);
+			fprintf(stderr, "ERROR: Could not create SSL object.\n");
 		}
 
 		// Free CTX Object
@@ -640,7 +627,7 @@ int populateCipherList(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 	else
 	{
 		returnCode = false;
-		fprintf(stderr, "%sERROR: Could not create CTX object.%s\n", COL_RED, RESET);
+		fprintf(stderr, "ERROR: Could not create CTX object.\n");
 	}
 
 	return returnCode;
@@ -692,7 +679,7 @@ int tcpConnect(struct sslCheckOptions *options)
 	socketDescriptor = socket(AF_INET, SOCK_STREAM, 0);
 	if(socketDescriptor < 0)
 	{
-		fprintf(stderr, "%s    ERROR: Could not open a socket.%s\n", COL_RED, RESET);
+		fprintf(stderr, "ERROR: Could not open a socket.\n");
 		return 0;
 	}
 
@@ -703,7 +690,7 @@ int tcpConnect(struct sslCheckOptions *options)
 	status = bind(socketDescriptor, (struct sockaddr *) &localAddress, sizeof(localAddress));
 	if(status < 0)
 	{
-		fprintf(stderr, "%s    ERROR: Could not bind to port.%s\n", COL_RED, RESET);
+		fprintf(stderr, "ERROR: Could not bind to port.\n");
 		return 0;
 	}
 
@@ -711,7 +698,7 @@ int tcpConnect(struct sslCheckOptions *options)
 	status = connect(socketDescriptor, (struct sockaddr *) &options->serverAddress, sizeof(options->serverAddress));
 	if(status < 0)
 	{
-		fprintf(stderr, "%s    ERROR: Could not open a connection to host %s on port %d.%s\n", COL_RED, options->host, options->port, RESET);
+		fprintf(stderr, "ERROR: Could not open a connection to host %s on port %d.\n", options->host, options->port);
 		return 0;
 	}
 
@@ -723,7 +710,7 @@ int tcpConnect(struct sslCheckOptions *options)
 		if (strncmp(buffer, "220", 3) != 0)
 		{
 			CLOSESOCKET(socketDescriptor);
-			fprintf(stderr, "%s    ERROR: The host %s on port %d did not appear to be an SMTP service.%s\n", COL_RED, options->host, options->port, RESET);
+			fprintf(stderr, "ERROR: The host %s on port %d did not appear to be an SMTP service.\n", options->host, options->port);
 			return 0;
 		}
 		send(socketDescriptor, "EHLO titania.co.uk\r\n", 20, 0);
@@ -732,7 +719,7 @@ int tcpConnect(struct sslCheckOptions *options)
 		if (strncmp(buffer, "250", 3) != 0)
 		{
 			CLOSESOCKET(socketDescriptor);
-			fprintf(stderr, "%s    ERROR: The SMTP service on %s port %d did not respond with status 250 to our HELO.%s\n", COL_RED, options->host, options->port, RESET);
+			fprintf(stderr, "ERROR: The SMTP service on %s port %d did not respond with status 250 to our HELO.\n", options->host, options->port);
 			return 0;
 		}
 		send(socketDescriptor, "STARTTLS\r\n", 10, 0);
@@ -741,7 +728,7 @@ int tcpConnect(struct sslCheckOptions *options)
 		if (strncmp(buffer, "220", 3) != 0)
 		{
 			CLOSESOCKET(socketDescriptor);
-			fprintf(stderr, "%s    ERROR: The SMTP service on %s port %d did not appear to support STARTTLS.%s\n", COL_RED, options->host, options->port, RESET);
+			fprintf(stderr, "ERROR: The SMTP service on %s port %d did not appear to support STARTTLS.\n", options->host, options->port);
 			return 0;
 		}
 	}
@@ -790,7 +777,7 @@ int loadCerts(struct sslCheckOptions *options)
 			{
 				if (!SSL_CTX_use_certificate_chain_file(options->ctx, options->clientCertsFile))
 				{
-					fprintf(stderr, "%s    Could not configure certificate(s).%s\n", COL_RED, RESET);
+					fprintf(stderr, "Could not configure certificate(s).\n");
 					status = 0;
 				}
 			}
@@ -807,7 +794,7 @@ int loadCerts(struct sslCheckOptions *options)
 					{
 						if (!SSL_CTX_use_RSAPrivateKey_file(options->ctx, options->privateKeyFile, SSL_FILETYPE_ASN1))
 						{
-							fprintf(stderr, "%s    Could not configure private key.%s\n", COL_RED, RESET);
+							fprintf(stderr, "Could not configure private key.\n");
 							status = 0;
 						}
 					}
@@ -826,26 +813,26 @@ int loadCerts(struct sslCheckOptions *options)
 			if (!pk12)
 			{
 				status = 0;
-				fprintf(stderr, "%s    Could not read PKCS#12 file.%s\n", COL_RED, RESET);
+				fprintf(stderr, "Could not read PKCS#12 file.\n");
 			}
 			else
 			{
 				if (!PKCS12_parse(pk12, options->privateKeyPassword, &pkey, &cert, &ca))
 				{
 					status = 0;
-					fprintf(stderr, "%s    Error parsing PKCS#12. Are you sure that password was correct?%s\n", COL_RED, RESET);
+					fprintf(stderr, "Error parsing PKCS#12. Are you sure that password was correct?\n");
 				}
 				else
 				{
 					if (!SSL_CTX_use_certificate(options->ctx, cert))
 					{
 						status = 0;
-						fprintf(stderr, "%s    Could not configure certificate.%s\n", COL_RED, RESET);
+						fprintf(stderr, "Could not configure certificate.\n");
 					}
 					if (!SSL_CTX_use_PrivateKey(options->ctx, pkey))
 					{
 						status = 0;
-						fprintf(stderr, "%s    Could not configure private key.%s\n", COL_RED, RESET);
+						fprintf(stderr, "Could not configure private key.\n");
 					}
 				}
 				PKCS12_free(pk12);
@@ -854,7 +841,7 @@ int loadCerts(struct sslCheckOptions *options)
 		}
 		else
 		{
-			fprintf(stderr, "%s    Could not open PKCS#12 file.%s\n", COL_RED, RESET);
+			fprintf(stderr, "Could not open PKCS#12 file.\n");
 			status = 0;
 		}
 	}
@@ -864,7 +851,7 @@ int loadCerts(struct sslCheckOptions *options)
 	{
 		if (!SSL_CTX_check_private_key(options->ctx))
 		{
-			fprintf(stderr, "%s    Private key does not match certificate.%s\n", COL_RED, RESET);
+			fprintf(stderr, "Private key does not match certificate.\n");
 			return false;
 		}
 		else
@@ -996,13 +983,13 @@ int testCipher(struct sslCheckOptions *options, struct sslCipher *sslCipherPoint
 			else
 			{
 				status = false;
-				fprintf(stderr, "%s    ERROR: Could create SSL object.%s\n", COL_RED, RESET);
+				fprintf(stderr, "ERROR: Could create SSL object.\n");
 			}
 		}
 		else
 		{
 			status = false;
-			fprintf(stderr, "%s    ERROR: Could set cipher %s.%s\n", COL_RED, sslCipherPointer->name, RESET);
+			fprintf(stderr, "ERROR: Could set cipher %s.\n", sslCipherPointer->name);
 		}
 
 		// Disconnect from host
@@ -1126,7 +1113,7 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 					{
 						status = false;
 						renOut->supported = false;
-						fprintf(stderr, "%s    ERROR: Could create SSL object.%s\n", COL_RED, RESET);
+						fprintf(stderr, "ERROR: Could create SSL object.\n");
 					}
 				}
 			}
@@ -1134,7 +1121,7 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 			{
 				status = false;
 				renOut->supported = false;
-				fprintf(stderr, "%s    ERROR: Could set cipher.%s\n", COL_RED, RESET);
+				fprintf(stderr, "ERROR: Could set cipher.\n");
 			}
 			
 			// Free CTX Object
@@ -1146,7 +1133,7 @@ int testRenegotiation(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 		{
 			status = false;
 			renOut->supported = false;
-			fprintf(stderr, "%sERROR: Could not create CTX object.%s\n", COL_RED, RESET);
+			fprintf(stderr, "ERROR: Could not create CTX object.\n");
 		}
 
 		// Disconnect from host
@@ -1247,14 +1234,14 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 					{
 						status = false;
 						snprintf(myCipherOutput->status, MAXSTRLEN(myCipherOutput->status), "error");
-						fprintf(stderr, "%s    ERROR: Could create SSL object.%s\n", COL_RED, RESET);
+						fprintf(stderr, "ERROR: Could create SSL object.\n");
 					}
 				}
 			}
 			else
 			{
 				status = false;
-				fprintf(stderr, "%s    ERROR: Could set cipher.%s\n", COL_RED, RESET);
+				fprintf(stderr, "ERROR: Could set cipher.\n");
 			}
 			
 			// Free CTX Object
@@ -1265,7 +1252,7 @@ int defaultCipher(struct sslCheckOptions *options, SSL_METHOD *sslMethod)
 		else
 		{
 			status = false;
-			fprintf(stderr, "%sERROR: Could not create CTX object.%s\n", COL_RED, RESET);
+			fprintf(stderr, "ERROR: Could not create CTX object.\n");
 		}
 
 		// Disconnect from host
@@ -1535,14 +1522,14 @@ int getCertificate(struct sslCheckOptions *options)
 					else
 					{
 						status = false;
-						fprintf(stderr, "%s    ERROR: Could create SSL object.%s\n", COL_RED, RESET);
+						fprintf(stderr, "ERROR: Could create SSL object.\n");
 					}
 				}
 			}
 			else
 			{
 				status = false;
-				fprintf(stderr, "%s    ERROR: Could set cipher.%s\n", COL_RED, RESET);
+				fprintf(stderr, "ERROR: Could set cipher.\n");
 			}
 
 			// Free CTX Object
@@ -1553,7 +1540,7 @@ int getCertificate(struct sslCheckOptions *options)
 		else
 		{
 			status = false;
-			fprintf(stderr, "%sERROR: Could not create CTX object.%s\n", COL_RED, RESET);
+			fprintf(stderr, "ERROR: Could not create CTX object.\n");
 		}
 
 		// Disconnect from host
@@ -1597,15 +1584,15 @@ int testHost(struct sslCheckOptions *options)
 	if (dwError != 0) {
 		if (dwError == WSAHOST_NOT_FOUND) {
 			//printf("Host not found\n");
-			fprintf(stderr, "%sERROR: Could not resolve hostname %s: Host not found.%s\n", COL_RED, options->host, RESET);
+			fprintf(stderr, "ERROR: Could not resolve hostname %s: Host not found.\n", options->host);
 			return false;
 		} else if (dwError == WSANO_DATA) {
 			//printf("No data record found\n");
-			fprintf(stderr, "%sERROR: Could not resolve hostname %s: No data record found.%s\n", COL_RED, options->host, RESET);
+			fprintf(stderr, "ERROR: Could not resolve hostname %s: No data record found.\n", options->host);
 			return false;
 		} else {
 			//printf("Function failed with error: %ld\n", dwError);
-			fprintf(stderr, "%sERROR: Could not resolve hostname %s: Error(%ld).%s\n", COL_RED, options->host, dwError, RESET);
+			fprintf(stderr, "ERROR: Could not resolve hostname %s: Error(%ld).\n", options->host, dwError);
 			return false;
 		}
 	}
@@ -1635,8 +1622,8 @@ int testHost(struct sslCheckOptions *options)
 	// Test supported ciphers...
 	if (options->quiet == false)
 	{
-		printf("\n%sTesting SSL server %s on port %d%s\n\n", COL_GREEN, options->host, options->port, RESET);
-		printf("  %sSupported Server Cipher(s):%s\n", COL_BLUE, RESET);
+		printf("\nTesting SSL server %s on port %d\n\n", options->host, options->port);
+		printf("  Supported Server Cipher(s):\n");
 		if ((options->http == true) && (options->pout == true))
 			printf("|| Status || HTTP Code || Version || Bits || Cipher ||\n");
 		else if (options->pout == true)
@@ -1673,7 +1660,7 @@ int testHost(struct sslCheckOptions *options)
 		else
 		{
 			status = false;
-			fprintf(stderr, "%sERROR: Could not create CTX object.%s\n", COL_RED, RESET);
+			fprintf(stderr, "ERROR: Could not create CTX object.\n");
 		}
 
 		sslCipherPointer = sslCipherPointer->next;
@@ -1684,7 +1671,7 @@ int testHost(struct sslCheckOptions *options)
 		// Test prefered ciphers...
 		if (options->quiet == false)
 		{
-			printf("\n  %sPrefered Server Cipher(s):%s\n", COL_BLUE, RESET);
+			printf("\n  Prefered Server Cipher(s):\n");
 			if (options->pout == true)
 				printf("|| Version || Bits || Cipher ||\n");
 		}
@@ -1871,7 +1858,7 @@ int main(int argc, char *argv[])
 		}
 		if (options.xmlOutput == NULL)
 		{
-			fprintf(stderr, "%sERROR: Could not open XML output file %s.%s\n", COL_RED, argv[xmlArg] + 6, RESET);
+			fprintf(stderr, "ERROR: Could not open XML output file %s.\n", argv[xmlArg] + 6);
 			exit(0);
 		}
 		
@@ -1882,61 +1869,61 @@ int main(int argc, char *argv[])
 	switch (mode)
 	{
 		case mode_version:
-			printf("%s%s%s", COL_BLUE, program_version, RESET);
+			printf("%s", program_version);
 			break;
 
 		case mode_help:
 			// Program version banner...
-			printf("%s%s%s\n", COL_BLUE, program_banner, RESET);
+			printf("%s\n", program_banner);
 			printf("SSLScan is a fast SSL port scanner. SSLScan connects to SSL\n");
 			printf("ports and determines what  ciphers are supported, which are\n");
 			printf("the servers  prefered  ciphers,  which  SSL  protocols  are\n");
 			printf("supported  and   returns  the   SSL   certificate.   Client\n");
 			printf("certificates /  private key can be configured and output is\n");
 			printf("to text / XML.\n\n");
-			printf("%sCommand:%s\n", COL_BLUE, RESET);
-			printf("  %s%s [Options] [host:port | host]%s\n\n", COL_GREEN, argv[0], RESET);
-			printf("%sOptions:%s\n", COL_BLUE, RESET);
-			printf("  %s--targets=<file>%s     A file containing a list of hosts to\n", COL_GREEN, RESET);
+			printf("Command:\n");
+			printf("  %s [Options] [host:port | host]\n\n", argv[0]);
+			printf("Options:\n");
+			printf("  --targets=<file>     A file containing a list of hosts to\n");
 			printf("                       check.  Hosts can  be supplied  with\n");
 			printf("                       ports (i.e. host:port).\n");
-			printf("  %s--no-failed%s          List only accepted ciphers  (default\n", COL_GREEN, RESET);
+			printf("  --no-failed          List only accepted ciphers  (default\n");
 			printf("                       is to listing all ciphers).\n");
-			printf("  %s--ssl2%s               Only check SSLv2 ciphers.\n", COL_GREEN, RESET);
-			printf("  %s--ssl3%s               Only check SSLv3 ciphers.\n", COL_GREEN, RESET);
-			printf("  %s--tls1%s               Only check TLSv1 ciphers.\n", COL_GREEN, RESET);
-			printf("  %s--pk=<file>%s          A file containing the private key or\n", COL_GREEN, RESET);
+			printf("  --ssl2               Only check SSLv2 ciphers.\n");
+			printf("  --ssl3               Only check SSLv3 ciphers.\n");
+			printf("  --tls1               Only check TLSv1 ciphers.\n");
+			printf("  --pk=<file>          A file containing the private key or\n");
 			printf("                       a PKCS#12  file containing a private\n");
 			printf("                       key/certificate pair (as produced by\n");
 			printf("                       MSIE and Netscape).\n");
-			printf("  %s--pkpass=<password>%s  The password for the private  key or\n", COL_GREEN, RESET);
+			printf("  --pkpass=<password>  The password for the private  key or\n");
 			printf("                       PKCS#12 file.\n");
-			printf("  %s--certs=<file>%s       A file containing PEM/ASN1 formatted\n", COL_GREEN, RESET);
+			printf("  --certs=<file>       A file containing PEM/ASN1 formatted\n");
 			printf("                       client certificates.\n");
-			printf("  %s--cafile=<file>%s      A file containing PEM/ASN1 formatted\n", COL_GREEN, RESET);
+			printf("  --cafile=<file>      A file containing PEM/ASN1 formatted\n");
 			printf("                       CA certificates.\n");
-			printf("  %s--capath=<path>%s      A path containing PEM/ASN1 formatted\n", COL_GREEN, RESET);
+			printf("  --capath=<path>      A path containing PEM/ASN1 formatted\n");
 			printf("                       CA certificates.\n");
-			printf("  %s--starttls%s           If a STARTTLS is required to kick an\n", COL_GREEN, RESET);
+			printf("  --starttls           If a STARTTLS is required to kick an\n");
 			printf("                       SMTP service into action.\n");
-			printf("  %s--http%s               Test a HTTP connection.\n", COL_GREEN, RESET);
-			printf("  %s--bugs%s               Enable SSL implementation  bug work-\n", COL_GREEN, RESET);
+			printf("  --http               Test a HTTP connection.\n");
+			printf("  --bugs               Enable SSL implementation  bug work-\n");
 			printf("                       arounds.\n");
-			printf("  %s--xml=<file>%s         Output results to an XML file. Use \"stdout\"\n", COL_GREEN, RESET);
+			printf("  --xml=<file>         Output results to an XML file. Use \"stdout\"\n");
 			printf("                           if you want to output XML to the console.\n");
-			printf("  %s--version%s            Display the program version.\n", COL_GREEN, RESET);
-			printf("  %s--quiet%s              Be quiet\n", COL_GREEN, RESET);
-			printf("  %s--help%s               Display the  help text  you are  now\n", COL_GREEN, RESET);
+			printf("  --version            Display the program version.\n");
+			printf("  --quiet              Be quiet\n");
+			printf("  --help               Display the  help text  you are  now\n");
 			printf("                       reading.\n");
-			printf("%sExample:%s\n", COL_BLUE, RESET);
-			printf("  %s%s 127.0.0.1%s\n\n", COL_GREEN, argv[0], RESET);
+			printf("Example:\n");
+			printf("  %s 127.0.0.1\n\n", argv[0]);
 			break;
 
 		// Check a single host/port ciphers...
 		case mode_single:
 		case mode_multiple:
 			if (options.quiet == false)
-				printf("%s%s%s", COL_BLUE, program_banner, RESET);
+				printf("%s", program_banner);
 
 			SSLeay_add_all_algorithms();
 			ERR_load_crypto_strings();
@@ -1972,7 +1959,7 @@ int main(int argc, char *argv[])
 					// Open targets file...
 					targetsFile = fopen(argv[options.targets] + 10, "r");
 					if (targetsFile == NULL)
-						fprintf(stderr, "%sERROR: Could not open targets file %s.%s\n", COL_RED, argv[options.targets] + 10, RESET);
+						fprintf(stderr, "ERROR: Could not open targets file %s.\n", argv[options.targets] + 10);
 					else
 					{
 						readLine(targetsFile, line, sizeof(line));
@@ -2000,7 +1987,7 @@ int main(int argc, char *argv[])
 					}
 				}
 				else
-					fprintf(stderr, "%sERROR: Targets file %s does not exist.%s\n", COL_RED, argv[options.targets] + 10, RESET);
+					fprintf(stderr, "ERROR: Targets file %s does not exist.\n", argv[options.targets] + 10);
 			}
 	
 			// Free Structures
