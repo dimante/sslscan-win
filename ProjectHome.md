@@ -1,0 +1,3 @@
+Windows port of SSLScan (https://sourceforge.net/projects/sslscan/)
+
+SSLScan queries SSL services, such as HTTPS, in order to determine the ciphers that are supported. SSLScan is designed to be easy, lean and fast. The output includes prefered ciphers of the SSL service, the certificate and is in Text and XML formats.
